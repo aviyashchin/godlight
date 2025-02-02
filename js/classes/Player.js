@@ -256,12 +256,12 @@ export default class Player {
     
     // Create hitbox
     const hitbox = this.scene.add.rectangle(
-      this.sprite.x, 
-      this.sprite.y, 
+      this.sprite.x + this.lastFacing.x * 40, 
+      this.sprite.y + this.lastFacing.y * 40, 
       80,  // width
       40,  // height
       0xffffff, // color
-      0 // alpha
+      0.2 // alpha - make it slightly visible for debugging
     );
     
     // Set hitbox properties
@@ -270,8 +270,8 @@ export default class Player {
     hitbox.owner = this;
     
     // Add physics
-    this.scene.physics.add.existing(hitbox);
-    hitbox.body.setCircle(20);
+    this.scene.physics.add.existing(hitbox, false);  // false = not static
+    hitbox.body.setImmovable(true);
     
     // Destroy after short time
     this.scene.time.delayedCall(200, () => {
@@ -289,7 +289,7 @@ export default class Player {
       this.sprite.y, 
       60, // radius
       0xffffff, // color
-      0 // alpha
+      0.2 // alpha - make it slightly visible for debugging
     );
     
     // Set hitbox properties
@@ -298,15 +298,19 @@ export default class Player {
     hitbox.rotationSpeed = 720; // degrees per second
     
     // Add physics
-    this.scene.physics.add.existing(hitbox);
+    this.scene.physics.add.existing(hitbox, false);  // false = not static
+    hitbox.body.setCircle(60);
+    hitbox.body.setImmovable(true);
     
     // Update rotation
-    this.scene.events.on('update', () => {
+    const updateListener = () => {
       hitbox.rotation += hitbox.rotationSpeed * (this.scene.game.loop.delta / 1000);
-    });
+    };
+    this.scene.events.on('update', updateListener);
     
     // Destroy after 1 second
     this.scene.time.delayedCall(1000, () => {
+      this.scene.events.off('update', updateListener);
       hitbox.destroy();
     });
   }
@@ -317,10 +321,11 @@ export default class Player {
     
     // Create projectile
     const projectile = this.scene.add.circle(
-      this.sprite.x,
-      this.sprite.y,
+      this.sprite.x + this.lastFacing.x * 20,
+      this.sprite.y + this.lastFacing.y * 20,
       10, // radius
-      0xff0000 // color
+      0xff0000, // color
+      0.8 // alpha
     );
     
     // Set projectile properties
@@ -328,7 +333,8 @@ export default class Player {
     projectile.owner = this;
     
     // Add physics
-    this.scene.physics.add.existing(projectile);
+    this.scene.physics.add.existing(projectile, false);  // false = not static
+    projectile.body.setCircle(10);
     
     // Set velocity
     const speed = 300;
@@ -338,9 +344,22 @@ export default class Player {
       projectile.body.velocity
     );
     
-    // Destroy after 2 seconds or when it leaves the arena
+    // Add collider with world bounds to destroy projectile
+    projectile.body.setCollideWorldBounds(true);
+    projectile.body.onWorldBounds = true;
+    
+    // Destroy when hitting world bounds
+    this.scene.physics.world.on('worldbounds', (body) => {
+      if (body.gameObject === projectile) {
+        projectile.destroy();
+      }
+    });
+    
+    // Destroy after 2 seconds as fallback
     this.scene.time.delayedCall(2000, () => {
-      projectile.destroy();
+      if (projectile && !projectile.destroyed) {
+        projectile.destroy();
+      }
     });
   }
 }
