@@ -1,7 +1,6 @@
 // js/scenes/MainScene.js
-import { GAME_WIDTH, GAME_HEIGHT, ARENA_CENTER, ARENA_RADIUS, PLAYER_SPEED, ENEMY_SPEED } from '../helpers.js';
-import { createPolygonTexture, createCircleTexture } from '../helpers.js';
-import { GODS, GOD_CONFIG } from '../helpers.js';
+import { GAME_WIDTH, GAME_HEIGHT, ARENA_CENTER, ARENA_RADIUS, PLAYER_SPEED, ENEMY_SPEED, GODS, GOD_CONFIG } from '../config/gameConfig.js';
+import { createPolygonTexture, createCircleTexture } from '../utils/textureHelpers.js';
 import Player from '../classes/Player.js';
 import Enemy from '../classes/Enemy.js';
 import ProjectileAttack from '../classes/ProjectileAttack.js';
@@ -9,7 +8,6 @@ import MeleeAttack from '../classes/MeleeAttack.js';
 import PieZone from '../classes/PieZone.js';
 import PowerUp from '../classes/PowerUp.js';
 import CurseManager from '../classes/CurseManager.js';
-import GAME_CONFIG from '../config/gameConfig.js';
 import CombatManager from '../managers/CombatManager.js';
 
 export default class MainScene extends Phaser.Scene {
@@ -52,18 +50,6 @@ export default class MainScene extends Phaser.Scene {
   }
   
   create() {
-    this.initializeManagers();
-    this.createArena();
-    this.createPlayers();
-    this.setupCameras();
-    this.setupGamepadListeners();
-  }
-  
-  initializeManagers() {
-    this.combatManager = new CombatManager(this);
-  }
-  
-  createArena() {
     this.cameras.main.setBackgroundColor(0x111111);
 
     ARENA_CENTER.x = GAME_WIDTH / 2;
@@ -259,44 +245,70 @@ export default class MainScene extends Phaser.Scene {
   }
   
   update(time, delta) {
-    this.combatManager.update(delta);
-    this.updateZones();
-    this.updateEntities(time, delta);
-    this.updateHUD();
-    this.checkWinCondition();
-  }
-  
-  updateZones() {
+    // Update zones.
     this.pieZones.forEach(zone => zone.updateDisplay(this.players));
     this.hadesCircle.setPosition(ARENA_CENTER.x, ARENA_CENTER.y);
-  }
-  
-  updateEntities(time, delta) {
-    // Update players
-    for (let i = this.players.length - 1; i >= 0; i--) {
-      const player = this.players[i];
-      player.update(delta);
-      this.curseManager.applyCurse(player);
-      
-      if (player.health <= 0) {
-        player.destroy();
-        this.players.splice(i, 1);
+
+    // Update melee attacks.
+    for (let i = this.meleeAttacks.length - 1; i >= 0; i--) {
+      let attack = this.meleeAttacks[i];
+      if (!attack.update(delta)) {
+        this.meleeAttacks.splice(i, 1);
+      } else {
+        let allTargets = this.players.concat(this.enemies);
+        let hitSomething = false;
+        allTargets.forEach(target => {
+          if (target !== attack.owner &&
+              Phaser.Geom.Intersects.RectangleToRectangle(attack.getBounds(), target.sprite.getBounds())) {
+            let dmg = attack.damage;
+            if (target.shield > 0) {
+              let remainder = dmg - target.shield;
+              target.shield = Math.max(0, target.shield - dmg);
+              if (remainder > 0) target.health = Math.max(0, target.health - remainder);
+            } else {
+              target.health = Math.max(0, target.health - dmg);
+            }
+            hitSomething = true;
+          }
+        });
+        if (hitSomething) {
+          attack.destroy();
+          this.meleeAttacks.splice(i, 1);
+        }
       }
     }
-
-    // Update enemies
+    
+    this.updateProjectileAttacks(delta);
+    this.updatePowerUps(delta);
+    
+    // Update players.
+    for (let i = 0; i < this.players.length; i++) {
+      let player = this.players[i];
+      player.update();
+      this.curseManager.applyCurse(player);
+      if (player.hudText) {
+          player.hudText.setText(`P${player.playerIndex}: ${player.god}\nHP: ${Math.floor(player.health)} | Shield: ${Math.floor(player.shield)} | Ammo: ${player.currentBullets}`);
+      }
+      if (player.health <= 0) {
+          player.destroy();
+          this.players.splice(i, 1);
+          i--; // Adjust index after removal.
+      }
+  }
+  
+    
+    // Update enemies.
     for (let i = this.enemies.length - 1; i >= 0; i--) {
-      const enemy = this.enemies[i];
+      let enemy = this.enemies[i];
       enemy.update(time, delta);
-      
       if (enemy.health <= 0) {
-        enemy.destroy();
+        enemy.sprite.destroy();
+        enemy.nameText.destroy();
+        enemy.healthBar.destroy();
         this.enemies.splice(i, 1);
       }
     }
-  }
-  
-  updateHUD() {
+    
     // Global HUD (if no split-screen).
     if (!this.playerCameras) {
       let allChars = this.players.concat(this.enemies);
@@ -308,9 +320,8 @@ export default class MainScene extends Phaser.Scene {
       });
       this.hudText.setText(hudInfo);
     }
-  }
-  
-  checkWinCondition() {
+    
+    // Win condition check.
     let allChars = this.players.concat(this.enemies);
     if (allChars.length > 0) {
       let uniqueGods = new Set(allChars.map(ch => ch.god));
