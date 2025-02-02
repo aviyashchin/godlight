@@ -253,62 +253,23 @@ export default class Player {
   meleeAttackRegular() {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
-    
-    // Create hitbox
-    const hitbox = this.scene.add.rectangle(
+    this.scene.spawnMeleeAttack(
       this.sprite.x, 
       this.sprite.y, 
-      80,  // width
-      40,  // height
-      0xffffff, // color
-      0 // alpha
+      "regular", 
+      this
     );
-    
-    // Set hitbox properties
-    hitbox.rotation = Math.atan2(this.lastFacing.y, this.lastFacing.x);
-    hitbox.damage = this.damage * 1.2;
-    hitbox.owner = this;
-    
-    // Add physics
-    this.scene.physics.add.existing(hitbox);
-    hitbox.body.setCircle(20);
-    
-    // Destroy after short time
-    this.scene.time.delayedCall(200, () => {
-      hitbox.destroy();
-    });
   }
 
   meleeAttackSpin() {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
-    
-    // Create hitbox
-    const hitbox = this.scene.add.circle(
+    this.scene.spawnMeleeAttack(
       this.sprite.x, 
       this.sprite.y, 
-      60, // radius
-      0xffffff, // color
-      0 // alpha
+      "spin", 
+      this
     );
-    
-    // Set hitbox properties
-    hitbox.damage = this.damage * 0.7;
-    hitbox.owner = this;
-    hitbox.rotationSpeed = 720; // degrees per second
-    
-    // Add physics
-    this.scene.physics.add.existing(hitbox);
-    
-    // Update rotation
-    this.scene.events.on('update', () => {
-      hitbox.rotation += hitbox.rotationSpeed * (this.scene.game.loop.delta / 1000);
-    });
-    
-    // Destroy after 1 second
-    this.scene.time.delayedCall(1000, () => {
-      hitbox.destroy();
-    });
   }
 
   projectileAttack() {
