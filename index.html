@@ -87,17 +87,17 @@ const ENEMY_SPEED = 50;
 class ProjectileAttack {
   constructor(scene, x, y, texture, velX, velY, damage, owner) {
     this.scene = scene;
-    // Spawn projectile with an offset so it does not hit the shooter.
+    // Use provided velocity direction instead of owner's lastFacing
     const offset = 30;
-    x = x + owner.lastFacing.x * offset;
-    y = y + owner.lastFacing.y * offset;
+    x = x + velX * offset;
+    y = y + velY * offset;
     this.sprite = scene.add.sprite(x, y, texture);
     this.sprite.setScale(0.5);
     this.velX = velX;
     this.velY = velY;
     this.damage = damage;
     this.owner = owner;
-    this.lifetime = 2000; // ms
+    this.lifetime = 2000;
   }
   update(delta) {
     const dt = delta / 1000;
@@ -447,6 +447,7 @@ class Enemy {
     // Display enemy name (e.g., "E0: Zeus").
     this.nameText = scene.add.text(x - 10, y - 30, "E" + index + ": " + this.god, { fontSize: '12px', fill: '#fff' });
     this.healthBar = scene.add.graphics();
+    this.lastFacing = { x: 1, y: 0 }; // Add this line
   }
   
   update(time, delta) {
@@ -456,7 +457,17 @@ class Enemy {
       this.currentBullets++;
       this.lastReloadTime = time;
     }
-    
+    if (nearest) {
+      let dx = nearest.sprite.x - this.sprite.x;
+      let dy = nearest.sprite.y - this.sprite.y;
+      let mag = Math.sqrt(dx*dx + dy*dy);
+      // Update lastFacing when moving
+      if (mag > 0) {
+        this.lastFacing = { 
+          x: dx / mag,
+          y: dy / mag
+        };
+      }
     // Simplified AI:
     if (this.homeZone && !this.homeZone.contains(this.sprite.x, this.sprite.y)) {
       // Move toward the center of the home zone.
@@ -697,13 +708,20 @@ class MainScene extends Phaser.Scene {
   
   spawnProjectileAttack(x, y, shooter, dirX, dirY) {
     let speed = 500;
+    // Normalize direction
     let mag = Math.sqrt(dirX * dirX + dirY * dirY);
-    if (mag === 0) { dirX = shooter.lastFacing.x; dirY = shooter.lastFacing.y; }
-    else { dirX /= mag; dirY /= mag; }
+    if (mag === 0) {
+      // Use shooter's lastFacing as fallback
+      dirX = shooter.lastFacing.x;
+      dirY = shooter.lastFacing.y;
+    } else {
+      dirX /= mag;
+      dirY /= mag;
+    }
     let velX = dirX * speed;
     let velY = dirY * speed;
     let damage = shooter.damage * 1.2;
-    let projectile = new ProjectileAttack(this, x, y, "projectile", velX, velY, damage, shooter);
+    let projectile = new ProjectileAttack(this, x, y, "projectile", dirX, dirY, damage, shooter);
     this.projectiles.push(projectile);
   }
   
