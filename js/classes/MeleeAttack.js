@@ -1,40 +1,43 @@
 export default class MeleeAttack {
-    constructor(scene, x, y, width, height, rotation, damage, owner) {
+    constructor(scene, x, y, type, owner) {
       this.scene = scene;
-      this.hitbox = scene.add.rectangle(x, y, width, height, 0xff0000, 0.5);
-      this.hitbox.rotation = rotation;
-      this.damage = damage;
       this.owner = owner;
-      this.lifetime = 200;
-      // Emit particles upon creation
-      this.emitParticles();
-    }
-    emitParticles() {
-      let particles = this.scene.add.particles('projectile');
-      particles.createEmitter({
-        x: this.hitbox.x,
-        y: this.hitbox.y,
-        speed: { min: -50, max: 50 },
-        scale: { start: 0.5, end: 0 },
-        lifespan: 300,
-        blendMode: 'ADD',
-        quantity: 10
-      });
-      this.scene.time.delayedCall(300, () => { particles.destroy(); });
+      this.type = type;
+      
+      // Different sizes and effects for regular vs spin
+      if (type === "spin") {
+        this.sprite = scene.add.circle(x, y, 60, owner.god ? GOD_CONFIG[owner.god].zoneColor : 0xffffff);
+        this.lifetime = 1000;
+        this.rotationSpeed = 720; // degrees per second
+      } else {
+        this.sprite = scene.add.rectangle(x, y, 80, 40, owner.god ? GOD_CONFIG[owner.god].zoneColor : 0xffffff);
+        this.lifetime = 200;
+      }
+      
+      this.sprite.setAlpha(0.5);
+      this.damage = owner.damage * (type === "spin" ? 0.7 : 1.2);
+      this.createdTime = scene.time.now;
     }
     update(delta) {
-      this.lifetime -= delta;
-      if (this.lifetime <= 0) {
+      const age = this.scene.time.now - this.createdTime;
+      
+      if (this.type === "spin") {
+        this.sprite.rotation += (this.rotationSpeed * delta) / 1000;
+        this.sprite.x = this.owner.sprite.x;
+        this.sprite.y = this.owner.sprite.y;
+      }
+      
+      // Fade out effect
+      this.sprite.setAlpha(0.5 * (1 - age / this.lifetime));
+      
+      if (age >= this.lifetime) {
         this.destroy();
         return false;
       }
       return true;
     }
-    getBounds() {
-      return this.hitbox.getBounds();
-    }
     destroy() {
-      this.hitbox.destroy();
+      this.sprite.destroy();
     }
   }
   

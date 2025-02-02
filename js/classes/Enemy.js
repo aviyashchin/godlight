@@ -21,8 +21,9 @@ export default class Enemy {
     this.lastReloadTime = 0;
     this.lastShieldReloadTime = 0;
     this.speed = ENEMY_SPEED;
-    this.attackCooldown = 1000;
+    this.attackCooldown = 2000;
     this.lastAttackTime = 0;
+    this.attackRange = 200;
     this.homeZone = this.scene.pieZones.find(z => z.god === this.god);
     this.state = "patrol";
     this.stateTime = 0;
@@ -96,13 +97,17 @@ export default class Enemy {
           this.sprite.y += (dy/mag) * this.speed * deltaTime;
         }
       }
-      if (minDist < 300 && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
+      if (minDist < this.attackRange && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
         this.currentBullets--;
         let dx = nearest.sprite.x - this.sprite.x;
         let dy = nearest.sprite.y - this.sprite.y;
         let mag = Math.sqrt(dx*dx+dy*dy);
         let dirX = dx/mag, dirY = dy/mag;
-        this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, dirX, dirY);
+        if (Math.random() < 0.7) {
+          this.scene.combatManager.spawnProjectile(this.sprite.x, this.sprite.y, this, dirX, dirY);
+        } else {
+          this.scene.combatManager.spawnMeleeAttack(this.sprite.x, this.sprite.y, Math.random() < 0.3 ? "spin" : "regular", this);
+        }
         this.lastAttackTime = time;
       }
     }
