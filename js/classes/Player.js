@@ -140,16 +140,31 @@ export default class Player {
 
       if (currentTime - this.lastAttackTime > this.attackCooldown) {
         if (this.keys.melee1.isDown && this.currentBullets > 0) {
-          this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "regular", this);
+          this.scene.combatManager.spawnMeleeAttack(
+            this.sprite.x, 
+            this.sprite.y, 
+            "regular", 
+            this
+          );
           this.currentBullets--;
           this.lastAttackTime = currentTime;
         } else if (this.keys.melee2.isDown && this.currentBullets > 0) {
-          this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "spin", this);
+          this.scene.combatManager.spawnMeleeAttack(
+            this.sprite.x, 
+            this.sprite.y, 
+            "spin", 
+            this
+          );
           this.currentBullets--;
           this.lastAttackTime = currentTime;
         } else if (this.keys.projectile.isDown && this.currentBullets > 0) {
-          this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, 
-            this.lastFacing.x, this.lastFacing.y);
+          this.scene.combatManager.spawnProjectile(
+            this.sprite.x, 
+            this.sprite.y, 
+            this, 
+            this.lastFacing.x, 
+            this.lastFacing.y
+          );
           this.currentBullets--;
           this.lastAttackTime = currentTime;
         }
