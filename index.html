@@ -15,12 +15,10 @@
 // =======================
 // Global Configuration
 // =======================
-
-// Game dimensions.
 const GAME_WIDTH = 1024;
 const GAME_HEIGHT = 768;
 
-// List of gods (for display).
+// List of gods (for display order and assignment).
 const GODS = [
   { name: "Zeus",      boon: "Lightning Rod – Continuously attracts enemy projectiles to you, dealing 25% more damage." },
   { name: "Poseidon",  boon: "Unstable Tides – You randomly push away nearby allies every 8 seconds." },
@@ -37,21 +35,21 @@ const GODS = [
   { name: "Hera",      boon: "Royal Tax – Your allies lose gold when near you." }
 ];
 
-// God-specific configuration for player stats.
+// Configuration for each god.
 const GOD_CONFIG = {
-  Zeus:      { health: 120, damage: 15, shield: 30, bullets: 12, bulletReload: 1000, shieldReload: 5000 },
-  Poseidon:  { health: 130, damage: 12, shield: 35, bullets: 14, bulletReload: 900,  shieldReload: 4500 },
-  Hades:     { health: 110, damage: 18, shield: 20, bullets: 10, bulletReload: 1100, shieldReload: 5500 },
-  Athena:    { health: 100, damage: 10, shield: 40, bullets: 15, bulletReload: 800,  shieldReload: 4000 },
-  Ares:      { health: 140, damage: 20, shield: 15, bullets: 8,  bulletReload: 1200, shieldReload: 6000 },
-  Aphrodite: { health: 90,  damage: 9,  shield: 45, bullets: 16, bulletReload: 700,  shieldReload: 3500 },
-  Apollo:    { health: 100, damage: 14, shield: 30, bullets: 12, bulletReload: 1000, shieldReload: 5000 },
-  Artemis:   { health: 95,  damage: 13, shield: 25, bullets: 12, bulletReload: 950,  shieldReload: 5000 },
-  Hephaestus:{ health: 150, damage: 17, shield: 10, bullets: 10, bulletReload: 1300, shieldReload: 6500 },
-  Hermes:    { health: 100, damage: 12, shield: 30, bullets: 14, bulletReload: 850,  shieldReload: 5000 },
-  Dionysus:  { health: 110, damage: 11, shield: 35, bullets: 12, bulletReload: 1000, shieldReload: 5000 },
-  Demeter:   { health: 120, damage: 10, shield: 40, bullets: 15, bulletReload: 900,  shieldReload: 4500 },
-  Hera:      { health: 130, damage: 12, shield: 50, bullets: 16, bulletReload: 800,  shieldReload: 4000 }
+  Zeus:      { health: 120, damage: 15, shield: 30, bullets: 12, bulletReload: 1000, shieldReload: 5000, zoneColor: 0xffcc00 },
+  Poseidon:  { health: 130, damage: 12, shield: 35, bullets: 14, bulletReload: 900,  shieldReload: 4500, zoneColor: 0x00ccff },
+  Hades:     { health: 110, damage: 18, shield: 20, bullets: 10, bulletReload: 1100, shieldReload: 5500, zoneColor: 0x660066 },
+  Athena:    { health: 100, damage: 10, shield: 40, bullets: 15, bulletReload: 800,  shieldReload: 4000, zoneColor: 0xcccccc },
+  Ares:      { health: 140, damage: 20, shield: 15, bullets: 8,  bulletReload: 1200, shieldReload: 6000, zoneColor: 0xff0000 },
+  Aphrodite: { health: 90,  damage: 9,  shield: 45, bullets: 16, bulletReload: 700,  shieldReload: 3500, zoneColor: 0xff66cc },
+  Apollo:    { health: 100, damage: 14, shield: 30, bullets: 12, bulletReload: 1000, shieldReload: 5000, zoneColor: 0xffff66 },
+  Artemis:   { health: 95,  damage: 13, shield: 25, bullets: 12, bulletReload: 950,  shieldReload: 5000, zoneColor: 0x66ff66 },
+  Hephaestus:{ health: 150, damage: 17, shield: 10, bullets: 10, bulletReload: 1300, shieldReload: 6500, zoneColor: 0x996633 },
+  Hermes:    { health: 100, damage: 12, shield: 30, bullets: 14, bulletReload: 850,  shieldReload: 5000, zoneColor: 0x66cc66 },
+  Dionysus:  { health: 110, damage: 11, shield: 35, bullets: 12, bulletReload: 1000, shieldReload: 5000, zoneColor: 0xcc66ff },
+  Demeter:   { health: 120, damage: 10, shield: 40, bullets: 15, bulletReload: 900,  shieldReload: 4500, zoneColor: 0x66ffcc },
+  Hera:      { health: 130, damage: 12, shield: 50, bullets: 16, bulletReload: 800,  shieldReload: 4000, zoneColor: 0xff99cc }
 };
 
 // Standard Xbox controller button indices.
@@ -63,6 +61,64 @@ const BUTTONS = {
 };
 
 // =======================
+// PieZone Class (for circular arena slices)
+// =======================
+class PieZone {
+  constructor(scene, centerX, centerY, radius, startAngle, endAngle, god, zoneColor) {
+    this.scene = scene;
+    this.centerX = centerX;
+    this.centerY = centerY;
+    this.radius = radius;
+    this.startAngle = startAngle; // radians
+    this.endAngle = endAngle;     // radians
+    this.god = god;
+    this.zoneColor = zoneColor;
+    this.defaultColor = 0x444444;
+    this.graphics = scene.add.graphics();
+    this.text = scene.add.text(0, 0, god, { fontSize: '14px', fill: '#fff' });
+    this.updateDisplay([]);
+  }
+  
+  contains(x, y) {
+    let dx = x - this.centerX;
+    let dy = y - this.centerY;
+    let dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > this.radius) return false;
+    let angle = Math.atan2(dy, dx);
+    if (angle < 0) angle += 2 * Math.PI;
+    if (this.startAngle > this.endAngle) {
+      return (angle >= this.startAngle || angle < this.endAngle);
+    } else {
+      return (angle >= this.startAngle && angle < this.endAngle);
+    }
+  }
+  
+  updateDisplay(players) {
+    this.graphics.clear();
+    // Determine if any player with matching god is in this zone.
+    let active = false;
+    players.forEach(player => {
+      if (player.god === this.god && this.contains(player.sprite.x, player.sprite.y)) {
+        active = true;
+      }
+    });
+    let fillColor = active ? this.zoneColor : this.defaultColor;
+    this.graphics.fillStyle(fillColor, 0.3);
+    this.graphics.slice(this.centerX, this.centerY, this.radius, this.startAngle, this.endAngle, false);
+    this.graphics.fillPath();
+    this.graphics.lineStyle(2, 0xffffff, 1);
+    this.graphics.slice(this.centerX, this.centerY, this.radius, this.startAngle, this.endAngle, false);
+    this.graphics.strokePath();
+    // Position the zone label in the middle of the arc.
+    let midAngle = (this.startAngle + this.endAngle) / 2;
+    let labelRadius = this.radius * 0.5;
+    let tx = this.centerX + labelRadius * Math.cos(midAngle) - 20;
+    let ty = this.centerY + labelRadius * Math.sin(midAngle) - 10;
+    this.text.setPosition(tx, ty);
+  }
+}
+
+// =======================
 // Player Class Definition
 // =======================
 class Player {
@@ -71,8 +127,7 @@ class Player {
     this.playerIndex = playerIndex;
     // Randomly assign a god.
     this.god = Phaser.Utils.Array.GetRandom(GODS).name;
-    
-    // Load stats from GOD_CONFIG (with defaults if missing).
+    // Get god-specific stats.
     let cfg = GOD_CONFIG[this.god] || { health: 100, damage: 10, shield: 20, bullets: 10, bulletReload: 1000, shieldReload: 5000 };
     this.maxHealth = cfg.health;
     this.health = cfg.health;
@@ -87,27 +142,20 @@ class Player {
     this.lastShieldReloadTime = 0;
     
     this.speed = 200;
-    // Create player sprite as a triangle (see createTriangleTexture in MainScene).
+    // Create player sprite as a triangle.
     this.sprite = scene.add.sprite(x, y, 'player');
-    // The texture 'player' is a triangle; tint it to distinguish players.
     this.sprite.setTint(Phaser.Display.Color.GetColor(100 + playerIndex * 50, 100, 200));
-    
-    // Display god name above sprite.
+    // Display god name above.
     this.godText = scene.add.text(x - 20, y - 50, this.god, { fontSize: '12px', fill: '#fff' });
-    // Display bullet count above sprite.
+    // Display bullet count.
     this.bulletText = scene.add.text(x - 20, y - 70, '', { fontSize: '12px', fill: '#fff' });
-    // Create a graphics object for health/shield bars.
+    // Create health bar graphics.
     this.healthBar = scene.add.graphics();
     
-    // Input references.
     this.gamepad = null;
     this.keys = null;
-    
-    // Attack cooldown.
     this.lastAttackTime = 0;
     this.attackCooldown = 500; // ms
-    
-    // Last movement direction (default facing right).
     this.lastFacing = { x: 1, y: 0 };
   }
   
@@ -115,26 +163,23 @@ class Player {
     const deltaTime = this.scene.game.loop.delta / 1000;
     const currentTime = this.scene.time.now;
     
-    // --- Auto-Reload Bullets ---
+    // Auto-reload bullets.
     if (currentTime - this.lastReloadTime > this.reloadRate && this.currentBullets < this.maxBullets) {
       this.currentBullets++;
       this.lastReloadTime = currentTime;
     }
-    // --- Auto-Reload Shields ---
+    // Auto-reload shield.
     if (currentTime - this.lastShieldReloadTime > this.shieldReloadRate && this.shield < this.maxShield) {
       this.shield++;
       this.lastShieldReloadTime = currentTime;
     }
-    
-    // Update bullet count text.
     this.bulletText.setText("Bullets: " + this.currentBullets);
-    this.bulletText.x = this.sprite.x - 20;
-    this.bulletText.y = this.sprite.y - 70;
+    this.bulletText.setPosition(this.sprite.x - 20, this.sprite.y - 70);
     
-    // --- Input Handling ---
+    // Input handling.
     if (!this.gamepad) {
-      // Keyboard fallback: assign unique keys based on playerIndex.
       if (!this.keys) {
+        // Unique key sets per player.
         if (this.playerIndex === 0) {
           this.keys = this.scene.input.keyboard.addKeys({
             left: Phaser.Input.Keyboard.KeyCodes.LEFT,
@@ -181,26 +226,20 @@ class Player {
           });
         }
       }
-      // Movement.
-      let velocityX = 0, velocityY = 0;
-      if (this.keys.left.isDown) { velocityX = -this.speed; }
-      else if (this.keys.right.isDown) { velocityX = this.speed; }
-      if (this.keys.up.isDown) { velocityY = -this.speed; }
-      else if (this.keys.down.isDown) { velocityY = this.speed; }
-      if (this.keys.sprint.isDown) {
-        velocityX *= 1.5;
-        velocityY *= 1.5;
+      let vx = 0, vy = 0;
+      if (this.keys.left.isDown) { vx = -this.speed; }
+      else if (this.keys.right.isDown) { vx = this.speed; }
+      if (this.keys.up.isDown) { vy = -this.speed; }
+      else if (this.keys.down.isDown) { vy = this.speed; }
+      if (this.keys.sprint.isDown) { vx *= 1.5; vy *= 1.5; }
+      if (vx !== 0 || vy !== 0) {
+        let mag = Math.sqrt(vx*vx + vy*vy);
+        this.lastFacing.x = vx / mag;
+        this.lastFacing.y = vy / mag;
       }
-      // Update lastFacing if moving.
-      if (velocityX !== 0 || velocityY !== 0) {
-        let mag = Math.sqrt(velocityX*velocityX + velocityY*velocityY);
-        this.lastFacing.x = velocityX / mag;
-        this.lastFacing.y = velocityY / mag;
-      }
-      this.sprite.x += velocityX * deltaTime;
-      this.sprite.y += velocityY * deltaTime;
+      this.sprite.x += vx * deltaTime;
+      this.sprite.y += vy * deltaTime;
       
-      // Attack via keyboard.
       if (this.keys.attack1.isDown && (currentTime - this.lastAttackTime > this.attackCooldown) && this.currentBullets > 0) {
         this.regularAttack();
         this.lastAttackTime = currentTime;
@@ -214,26 +253,20 @@ class Player {
         this.lastAttackTime = currentTime;
       }
     } else {
-      // --- Gamepad Input ---
-      // Movement via left joystick.
+      // Gamepad input.
       let axisH = (this.gamepad.axes.length > 0) ? this.gamepad.axes[0].getValue() : 0;
       let axisV = (this.gamepad.axes.length > 1) ? this.gamepad.axes[1].getValue() : 0;
-      let velocityX = axisH * this.speed;
-      let velocityY = axisV * this.speed;
-      if (this.gamepad.buttons[BUTTONS.A].pressed) {
-        velocityX *= 1.5;
-        velocityY *= 1.5;
-      }
-      // Update lastFacing if movement input is significant.
+      let vx = axisH * this.speed;
+      let vy = axisV * this.speed;
+      if (this.gamepad.buttons[BUTTONS.A].pressed) { vx *= 1.5; vy *= 1.5; }
       if (Math.abs(axisH) > 0.1 || Math.abs(axisV) > 0.1) {
         let mag = Math.sqrt(axisH*axisH + axisV*axisV);
         this.lastFacing.x = axisH / mag;
         this.lastFacing.y = axisV / mag;
       }
-      this.sprite.x += velocityX * deltaTime;
-      this.sprite.y += velocityY * deltaTime;
+      this.sprite.x += vx * deltaTime;
+      this.sprite.y += vy * deltaTime;
       
-      // Attack via gamepad buttons (if bullets available).
       if (currentTime - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
         if (this.gamepad.buttons[BUTTONS.B].pressed) {
           this.regularAttack();
@@ -248,73 +281,50 @@ class Player {
       }
     }
     
-    // Rotate the sprite so the triangle faces lastFacing.
+    // Rotate the triangle so it faces lastFacing.
     this.sprite.rotation = Math.atan2(this.lastFacing.y, this.lastFacing.x) + Math.PI/2;
-    
-    // Update text positions.
-    this.godText.x = this.sprite.x - 20;
-    this.godText.y = this.sprite.y - 50;
-    
-    // Update health and shield bars.
+    this.godText.setPosition(this.sprite.x - 20, this.sprite.y - 50);
+    this.bulletText.setPosition(this.sprite.x - 20, this.sprite.y - 70);
     this.updateHealthBar();
   }
   
-  // Regular Attack.
   regularAttack() {
-    if (this.currentBullets <= 0) {
-      console.log(`Player ${this.playerIndex} out of bullets!`);
-      return;
-    }
-    console.log(`Player ${this.playerIndex} regular attack triggered`);
+    if (this.currentBullets <= 0) return;
     this.currentBullets--;
     this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'regular', this);
   }
   
-  // Long Range Attack.
   longRangeAttack() {
-    if (this.currentBullets <= 0) {
-      console.log(`Player ${this.playerIndex} out of bullets!`);
-      return;
-    }
-    console.log(`Player ${this.playerIndex} long range attack triggered`);
+    if (this.currentBullets <= 0) return;
     this.currentBullets--;
     this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'long', this);
   }
   
-  // Spin Attack.
   spinAttack() {
-    if (this.currentBullets <= 0) {
-      console.log(`Player ${this.playerIndex} out of bullets!`);
-      return;
-    }
-    console.log(`Player ${this.playerIndex} spin attack triggered`);
+    if (this.currentBullets <= 0) return;
     this.currentBullets--;
     this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'spin', this);
   }
   
-  // Update health and shield bars.
   updateHealthBar() {
     this.healthBar.clear();
     const barWidth = 40, barHeight = 6;
-    // Health bar (red background, green foreground).
-    let healthPercent = this.health / this.maxHealth;
+    let healthPercent = Phaser.Math.Clamp(this.health / this.maxHealth, 0, 1);
     this.healthBar.fillStyle(0xff0000);
-    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 70, barWidth, barHeight);
+    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 80, barWidth, barHeight);
     this.healthBar.fillStyle(0x00ff00);
-    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 70, barWidth * healthPercent, barHeight);
-    
-    // Shield bar (blue) below the health bar.
-    let shieldPercent = this.shield / this.maxShield;
+    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 80, barWidth * healthPercent, barHeight);
+    // Draw shield bar below health bar.
+    let shieldPercent = Phaser.Math.Clamp(this.shield / this.maxShield, 0, 1);
     this.healthBar.fillStyle(0x0000ff);
-    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 62, barWidth * shieldPercent, barHeight);
+    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 72, barWidth * shieldPercent, barHeight);
   }
   
   applyZoneEffect(zone) {
-    // Simple tint change based on zone.
     if (zone.god === this.god) {
       this.sprite.setTint(0x00ff00);
     } else {
-      this.sprite.setTint(0xff0000);
+      this.sprite.setTint(Phaser.Display.Color.GetColor(100 + this.playerIndex * 50, 100, 200));
     }
   }
   
@@ -324,54 +334,89 @@ class Player {
 }
 
 // =======================
-// Enemy Class Definition
+// Enemy Class Definition (NPC)
 // =======================
 class Enemy {
   constructor(scene, x, y) {
     this.scene = scene;
-    this.sprite = scene.add.sprite(x, y, 'enemy');
+    // Default enemy stats.
+    this.maxHealth = 50;
     this.health = 50;
-    this.attackCooldown = Phaser.Math.Between(2000, 5000);
+    this.damage = 10;
+    this.maxBullets = 5;
+    this.currentBullets = 5;
+    this.reloadRate = 1500;
+    this.lastReloadTime = 0;
+    this.speed = 100;
+    this.attackCooldown = 1000;
     this.lastAttackTime = 0;
+    // Create enemy as a square.
+    this.sprite = scene.add.sprite(x, y, 'enemy');
+    this.sprite.setTint(0xff00ff);
+    this.healthBar = scene.add.graphics();
   }
   
   update(time, delta) {
-    if (time - this.lastAttackTime > this.attackCooldown) {
-      this.telegraphedAttack(time);
-      this.lastAttackTime = time;
-      this.attackCooldown = Phaser.Math.Between(2000, 5000);
+    const deltaTime = delta / 1000;
+    // Auto-reload enemy bullets.
+    if (time - this.lastReloadTime > this.reloadRate && this.currentBullets < this.maxBullets) {
+      this.currentBullets++;
+      this.lastReloadTime = time;
+    }
+    // Find nearest player.
+    let nearest = null, minDist = Infinity;
+    this.scene.players.forEach(player => {
+      let dx = player.sprite.x - this.sprite.x;
+      let dy = player.sprite.y - this.sprite.y;
+      let dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < minDist) { minDist = dist; nearest = player; }
+    });
+    if (nearest) {
+      // Move toward the nearest player.
+      let dx = nearest.sprite.x - this.sprite.x;
+      let dy = nearest.sprite.y - this.sprite.y;
+      let mag = Math.sqrt(dx*dx + dy*dy);
+      if (mag > 0) {
+        let vx = (dx / mag) * this.speed;
+        let vy = (dy / mag) * this.speed;
+        this.sprite.x += vx * deltaTime;
+        this.sprite.y += vy * deltaTime;
+      }
+      // Attack if within range.
+      if (minDist < 300 && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
+        this.currentBullets--;
+        // Fire projectile aimed at the nearest player.
+        let dirX = dx / mag, dirY = dy / mag;
+        this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'regular', { damage: this.damage, playerIndex: -1, lastFacing: { x: dirX, y: dirY } });
+        this.lastAttackTime = time;
+      }
+    }
+    // Update enemy health bar.
+    this.updateHealthBar();
+    // If health <= 0, destroy enemy.
+    if (this.health <= 0) {
+      this.sprite.destroy();
+      this.healthBar.destroy();
+      this.scene.enemies = this.scene.enemies.filter(e => e !== this);
     }
   }
   
-  telegraphedAttack(time) {
-    let attackPower = Phaser.Math.FloatBetween(0.25, 1.5);
-    let telegraphDuration = Phaser.Math.Clamp(attackPower, 0.25, 1.5) * 1000;
-    let telegraph = this.scene.add.rectangle(this.sprite.x, this.sprite.y, 50, 50, 0xffff00, 0.5);
-    this.scene.time.delayedCall(telegraphDuration, () => {
-      telegraph.destroy();
-      this.scene.spawnEnemyProjectile(this.sprite.x, this.sprite.y, attackPower);
-    }, [], this);
+  updateHealthBar() {
+    this.healthBar.clear();
+    const barWidth = 30, barHeight = 5;
+    let healthPercent = Phaser.Math.Clamp(this.health / this.maxHealth, 0, 1);
+    this.healthBar.fillStyle(0xff0000);
+    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 40, barWidth, barHeight);
+    this.healthBar.fillStyle(0x00ff00);
+    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 40, barWidth * healthPercent, barHeight);
   }
 }
 
 // =======================
-// Zone Class Definition
+// PieZone is used for the circular arena.
 // =======================
-class Zone {
-  constructor(scene, x, y, width, height, god) {
-    this.scene = scene;
-    this.rect = new Phaser.Geom.Rectangle(x, y, width, height);
-    this.god = god;
-    this.graphics = scene.add.graphics();
-    this.graphics.lineStyle(2, 0xffffff, 1);
-    this.graphics.strokeRectShape(this.rect);
-    this.text = scene.add.text(x + 5, y + 5, god, { fontSize: '14px', fill: '#fff' });
-  }
-  
-  contains(x, y) {
-    return this.rect.contains(x, y);
-  }
-}
+
+// (The PieZone class is defined above)
 
 // =======================
 // Main Game Scene
@@ -382,10 +427,11 @@ class MainScene extends Phaser.Scene {
   }
   
   preload() {
-    // For the player, create a triangle texture instead of a square.
+    // Create a triangle texture for players.
     this.createTriangleTexture('player', 40, 40, 0x00aaff);
-    // Other placeholder textures.
+    // Create placeholder square for enemy.
     this.createPlaceholderGraphics('enemy', 30, 30, 0xff00ff);
+    // Create projectile textures.
     this.createPlaceholderGraphics('projectile_regular', 10, 10, 0xffffff);
     this.createPlaceholderGraphics('projectile_long', 8, 8, 0xffff00);
     this.createPlaceholderGraphics('projectile_spin', 20, 20, 0x00ff00);
@@ -394,53 +440,77 @@ class MainScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(0x222222);
     
-    // Create arena zones.
-    this.zones = [];
-    let numZones = GODS.length;
-    let cols = 4;
-    let rows = Math.ceil(numZones / cols);
-    let zoneWidth = GAME_WIDTH / cols;
-    let zoneHeight = GAME_HEIGHT / rows;
-    let index = 0;
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (index < numZones) {
-          let x = c * zoneWidth;
-          let y = r * zoneHeight;
-          let zone = new Zone(this, x, y, zoneWidth, zoneHeight, GODS[index].name);
-          this.zones.push(zone);
-          index++;
-        }
-      }
+    // Create circular arena with 13 pie slices.
+    this.pieZones = [];
+    let centerX = GAME_WIDTH / 2;
+    let centerY = GAME_HEIGHT / 2;
+    let arenaRadius = Math.min(GAME_WIDTH, GAME_HEIGHT) / 2 - 20;
+    const numZones = 13;
+    for (let i = 0; i < numZones; i++) {
+      let startAngle = i * (2 * Math.PI / numZones);
+      let endAngle = (i + 1) * (2 * Math.PI / numZones);
+      let god = GODS[i].name;
+      let zoneColor = (GOD_CONFIG[god] && GOD_CONFIG[god].zoneColor) || 0xffffff;
+      let zone = new PieZone(this, centerX, centerY, arenaRadius, startAngle, endAngle, god, zoneColor);
+      this.pieZones.push(zone);
     }
     
-    // Create up to 4 players.
+    // Create players (up to 4).  
+    // If a player's god matches a zone, spawn them randomly inside that pie slice; else, spawn randomly in the arena.
     this.players = [];
     for (let i = 0; i < 4; i++) {
-      let x = Phaser.Math.Between(50, GAME_WIDTH - 50);
-      let y = Phaser.Math.Between(50, GAME_HEIGHT - 50);
-      let player = new Player(this, x, y, i);
+      let playerGod = Phaser.Utils.Array.GetRandom(GODS).name;
+      // For consistency, assign the god from config.
+      let spawnX, spawnY;
+      let zone = this.pieZones.find(z => z.god === playerGod);
+      if (zone) {
+        // Randomly choose an angle between zone.startAngle and zone.endAngle.
+        let angle = Phaser.Math.FloatBetween(zone.startAngle, zone.endAngle);
+        let r = Phaser.Math.FloatBetween(0, zone.radius * 0.8);
+        spawnX = zone.centerX + r * Math.cos(angle);
+        spawnY = zone.centerY + r * Math.sin(angle);
+      } else {
+        spawnX = Phaser.Math.Between(50, GAME_WIDTH - 50);
+        spawnY = Phaser.Math.Between(50, GAME_HEIGHT - 50);
+      }
+      let player = new Player(this, spawnX, spawnY, i);
+      // Override the randomly assigned god with the chosen one.
+      player.god = playerGod;
+      // Update stats based on GOD_CONFIG.
+      let cfg = GOD_CONFIG[player.god] || { health: 100, damage: 10, shield: 20, bullets: 10, bulletReload: 1000, shieldReload: 5000 };
+      player.maxHealth = cfg.health;
+      player.health = cfg.health;
+      player.damage = cfg.damage;
+      player.maxShield = cfg.shield;
+      player.shield = cfg.shield;
+      player.maxBullets = cfg.bullets;
+      player.currentBullets = cfg.bullets;
       this.players.push(player);
     }
     
-    // Assign already-connected gamepads.
+    // Create enemy NPCs. They spawn randomly inside the arena.
+    this.enemies = [];
+    for (let i = 0; i < 5; i++) {
+      let angle = Phaser.Math.FloatBetween(0, 2 * Math.PI);
+      let r = Phaser.Math.FloatBetween(0, arenaRadius * 0.9);
+      let x = centerX + r * Math.cos(angle);
+      let y = centerY + r * Math.sin(angle);
+      let enemy = new Enemy(this, x, y);
+      this.enemies.push(enemy);
+    }
+    
+    // Gamepad assignment.
     if (this.input.gamepad.total > 0) {
-      console.log("Gamepads already connected:", this.input.gamepad.gamepads);
       this.input.gamepad.gamepads.forEach((pad, idx) => {
         if (this.players[idx] && !this.players[idx].gamepad) {
           this.players[idx].gamepad = pad;
-          console.log("Assigned gamepad", pad.id, "to player", idx);
         }
       });
     }
-    
-    // Listen for new gamepad connections.
     this.input.gamepad.on('connected', (pad) => {
-      console.log("Gamepad connected:", pad.id);
       this.players.forEach((player, idx) => {
         if (!player.gamepad && this.input.gamepad.gamepads[idx]) {
           player.gamepad = this.input.gamepad.gamepads[idx];
-          console.log("Assigned gamepad", pad.id, "to player", idx);
         }
       });
     });
@@ -448,30 +518,20 @@ class MainScene extends Phaser.Scene {
     // Create projectile groups.
     this.projectiles = this.add.group();
     this.enemyProjectiles = this.add.group();
-    
-    // Create NPC enemies.
-    this.enemies = [];
-    for (let i = 0; i < 5; i++) {
-      let x = Phaser.Math.Between(100, GAME_WIDTH - 100);
-      let y = Phaser.Math.Between(100, GAME_HEIGHT - 100);
-      let enemy = new Enemy(this, x, y);
-      this.enemies.push(enemy);
-    }
   }
   
   update(time, delta) {
+    // Update zones display.
+    this.pieZones.forEach(zone => zone.updateDisplay(this.players));
+    
     // Update players.
     this.players.forEach(player => {
       player.update();
-      let inZone = false;
-      this.zones.forEach(zone => {
-        if (zone.contains(player.sprite.x, player.sprite.y)) {
-          player.applyZoneEffect(zone);
-          inZone = true;
-        }
-      });
-      if (!inZone) {
-        player.clearZoneEffect();
+      // (Optional) You can also check if a player has died (health==0) and handle it.
+      if (player.health <= 0) {
+        // For now, clamp at 0.
+        player.health = 0;
+        // Optionally, remove the player sprite.
       }
     });
     
@@ -480,7 +540,7 @@ class MainScene extends Phaser.Scene {
       enemy.update(time, delta);
     });
     
-    // Update projectiles positions.
+    // Update projectile positions.
     this.projectiles.getChildren().forEach(proj => {
       proj.x += proj.velX * delta / 1000;
       proj.y += proj.velY * delta / 1000;
@@ -488,7 +548,6 @@ class MainScene extends Phaser.Scene {
         proj.destroy();
       }
     });
-    
     this.enemyProjectiles.getChildren().forEach(proj => {
       proj.x += proj.velX * delta / 1000;
       proj.y += proj.velY * delta / 1000;
@@ -497,52 +556,62 @@ class MainScene extends Phaser.Scene {
       }
     });
     
-    // --- Collision Detection ---
-    // Check player projectiles against players.
+    // --- Collision Detection for Player Projectiles hitting Players ---
     this.projectiles.getChildren().forEach(proj => {
       this.players.forEach(player => {
         if (proj.owner !== player && Phaser.Geom.Intersects.RectangleToRectangle(proj.getBounds(), player.sprite.getBounds())) {
-          let dmg = proj.owner ? proj.owner.damage : 10;
-          // Apply damage: reduce shield first, then health.
+          let dmg = proj.owner.damage || 10;
+          // Apply damage to shield first.
           if (player.shield > 0) {
             let remainder = dmg - player.shield;
             player.shield = Math.max(0, player.shield - dmg);
             if (remainder > 0) {
-              player.health -= remainder;
+              player.health = Math.max(0, player.health - remainder);
             }
           } else {
-            player.health -= dmg;
+            player.health = Math.max(0, player.health - dmg);
           }
           proj.destroy();
         }
       });
     });
     
-    // Check enemy projectiles against players.
+    // --- Collision Detection for Player Projectiles hitting Enemies ---
+    this.projectiles.getChildren().forEach(proj => {
+      this.enemies.forEach(enemy => {
+        if (proj.owner.playerIndex !== -1 && Phaser.Geom.Intersects.RectangleToRectangle(proj.getBounds(), enemy.sprite.getBounds())) {
+          let dmg = proj.owner.damage || 10;
+          enemy.health = Math.max(0, enemy.health - dmg);
+          proj.destroy();
+        }
+      });
+    });
+    
+    // --- Collision Detection for Enemy Projectiles hitting Players ---
     this.enemyProjectiles.getChildren().forEach(proj => {
       this.players.forEach(player => {
         if (Phaser.Geom.Intersects.RectangleToRectangle(proj.getBounds(), player.sprite.getBounds())) {
-          let dmg = 10; // fixed damage for enemy projectiles.
+          let dmg = 10; // fixed damage.
           if (player.shield > 0) {
             let remainder = dmg - player.shield;
             player.shield = Math.max(0, player.shield - dmg);
             if (remainder > 0) {
-              player.health -= remainder;
+              player.health = Math.max(0, player.health - remainder);
             }
           } else {
-            player.health -= dmg;
+            player.health = Math.max(0, player.health - dmg);
           }
           proj.destroy();
         }
       });
     });
     
-    // Save progress (for demonstration).
+    // Save progress (for debugging).
     let progress = { players: this.players.map(p => ({ god: p.god, health: p.health, shield: p.shield, bullets: p.currentBullets })) };
     localStorage.setItem('godlightProgress', JSON.stringify(progress));
   }
   
-  // Create a square texture (for enemy, bullets, etc.).
+  // Create a placeholder square texture.
   createPlaceholderGraphics(key, width, height, color) {
     let graphics = this.make.graphics({ x: 0, y: 0, add: false });
     graphics.fillStyle(color, 1);
@@ -551,55 +620,49 @@ class MainScene extends Phaser.Scene {
     graphics.destroy();
   }
   
-  // Create a triangle texture (for player characters).
+  // Create a triangle texture for players.
   createTriangleTexture(key, width, height, color) {
     let graphics = this.make.graphics({ x: 0, y: 0, add: false });
     graphics.fillStyle(color, 1);
     graphics.beginPath();
-    graphics.moveTo(width / 2, 0);         // Tip (top center)
-    graphics.lineTo(0, height);              // Bottom left
-    graphics.lineTo(width, height);          // Bottom right
+    graphics.moveTo(width/2, 0);
+    graphics.lineTo(0, height);
+    graphics.lineTo(width, height);
     graphics.closePath();
     graphics.fillPath();
     graphics.generateTexture(key, width, height);
     graphics.destroy();
   }
   
-  // Spawn a projectile from a player.
-  spawnProjectile(x, y, type, player) {
-    console.log(`Spawning ${type} projectile for player ${player.playerIndex} at (${x}, ${y})`);
+  // Spawn a projectile from a player or enemy.
+  spawnProjectile(x, y, type, shooter) {
     let projKey = 'projectile_regular';
     let speed = 300;
-    if (type === 'long') {
-      projKey = 'projectile_long';
-      speed = 400;
-    } else if (type === 'spin') {
-      projKey = 'projectile_spin';
-      speed = 200;
-    }
+    if (type === 'long') { projKey = 'projectile_long'; speed = 400; }
+    else if (type === 'spin') { projKey = 'projectile_spin'; speed = 200; }
     let projectile = this.add.sprite(x, y, projKey);
-    
-    // Determine firing direction: if right joystick is neutral, use player's lastFacing.
-    let attackDirX = 0, attackDirY = 0;
-    if (player.gamepad && player.gamepad.axes.length >= 4) {
-      attackDirX = player.gamepad.axes[2].getValue();
-      attackDirY = player.gamepad.axes[3].getValue();
+    // Determine firing direction.
+    let dirX = 0, dirY = 0;
+    if (shooter.gamepad && shooter.gamepad.axes.length >= 4) {
+      dirX = shooter.gamepad.axes[2].getValue();
+      dirY = shooter.gamepad.axes[3].getValue();
     }
-    if (Math.abs(attackDirX) < 0.1 && Math.abs(attackDirY) < 0.1) {
-      attackDirX = player.lastFacing.x;
-      attackDirY = player.lastFacing.y;
+    if (Math.abs(dirX) < 0.1 && Math.abs(dirY) < 0.1) {
+      dirX = shooter.lastFacing.x;
+      dirY = shooter.lastFacing.y;
     } else {
-      let mag = Math.sqrt(attackDirX*attackDirX + attackDirY*attackDirY);
-      attackDirX /= mag;
-      attackDirY /= mag;
+      let mag = Math.sqrt(dirX*dirX + dirY*dirY);
+      dirX /= mag;
+      dirY /= mag;
     }
-    projectile.velX = attackDirX * speed;
-    projectile.velY = attackDirY * speed;
-    projectile.owner = player;
+    projectile.velX = dirX * speed;
+    projectile.velY = dirY * speed;
+    // Attach shooter info (for damage and to avoid self-hit).
+    projectile.owner = shooter;
     this.projectiles.add(projectile);
   }
   
-  // Spawn an enemy projectile.
+  // Spawn an enemy projectile (unused if enemy uses spawnProjectile aimed at a player).
   spawnEnemyProjectile(x, y, attackPower) {
     let projectile = this.add.sprite(x, y, 'projectile_regular');
     let angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
