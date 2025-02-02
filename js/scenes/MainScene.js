@@ -102,20 +102,22 @@ export default class MainScene extends Phaser.Scene {
     this.powerUps = [];
     // --- Create Combatants ---
     // For testing, create exactly 2 players and the remaining as enemies.
+// After creating your players and before creating cameras, force exactly 2 players:
     this.players = [];
-    this.enemies = [];
-    // Create 2 players for local two-player mode.
+    this.enemies = []; // (spawn enemies as needed)
+
+    // Create 2 players for local two-player mode:
     for (let i = 0; i < 2; i++) {
-      // For simplicity, we choose a god from GODS (or assign a default god)
-      let godName = GODS[i].name; // Use first 2 gods for players
-      // Spawn at different positions.
+      // For simplicity, choose the first two gods from GODS.
+      let godName = GODS[i].name;  
+      // Spawn positions offset from the arena center.
       let spawnX = ARENA_CENTER.x + (i === 0 ? -100 : 100);
       let spawnY = ARENA_CENTER.y;
       let shapeSides = (godName === "Hades") ? 0 : (3 + i);
       let player = new Player(this, spawnX, spawnY, i, shapeSides);
       player.god = godName;
       player.sprite.setTexture(godName === "Hades" ? "circle_hades" : "poly_" + shapeSides);
-      // Assign each player a home zone from the pieZones (or fallback to hadesCircle)
+      // For this test, assign a homeZone from pieZones or fallback.
       player.homeZone = (godName === "Hades") ? this.hadesCircle : this.pieZones.find(z => z.god === godName);
       let cfg = GOD_CONFIG[godName];
       player.maxHealth = cfg.health;
@@ -127,6 +129,48 @@ export default class MainScene extends Phaser.Scene {
       player.currentBullets = cfg.bullets;
       this.players.push(player);
     }
+
+    // --- Create split-screen cameras for 2 players ---
+    if (this.players.length === 2) {
+      // Remove the default camera if it exists.
+      if (this.cameras.main) {
+        this.cameras.remove(this.cameras.main);
+      }
+      this.playerCameras = [];
+      let camWidth = GAME_WIDTH / 2;
+      let camHeight = GAME_HEIGHT;
+      // Create two side-by-side cameras:
+      this.players.forEach((player, i) => {
+        let x = i * camWidth;  // Player 0: x=0, Player 1: x=camWidth.
+        let y = 0;
+        let cam = this.cameras.add(x, y, camWidth, camHeight);
+        cam.startFollow(player.sprite);
+        this.playerCameras.push(cam);
+        // Save a reference to each player's camera (used in curse effects, for example)
+        player.camera = cam;
+        // Create an individual HUD overlay for each player.
+        player.hudText = this.add.text(x + 10, y + 10, "", { fontSize: '14px', fill: '#fff' })
+                                .setScrollFactor(0)
+                                .setDepth(2000);
+      });
+    }
+
+    // --- Gamepad Assignment via Event Listener ---
+    // Listen for gamepad connection events and assign them individually.
+    this.input.gamepad.on('connected', (pad) => {
+      console.log("Gamepad connected:", pad.id);
+      // If player 0 doesn't have a gamepad, assign this one.
+      if (!this.players[0].gamepad) {
+        this.players[0].gamepad = pad;
+        console.log("Assigned gamepad to Player 0");
+      } else if (!this.players[1].gamepad) {
+        // Otherwise, assign to player 1.
+        this.players[1].gamepad = pad;
+        console.log("Assigned gamepad to Player 1");
+      }
+    });
+
+    // Optionally remove or adjust any 'gamepad connected' event listeners that might reassign controllers.
     // Create the rest as enemies (if desired, or skip for testing).
     for (let i = 2; i < GODS.length; i++) {
       let godName = GODS[i].name;
@@ -147,47 +191,6 @@ export default class MainScene extends Phaser.Scene {
       enemy.currentBullets = cfg.bullets;
       this.enemies.push(enemy);
     }
-
-    // --- Create Two-Player Side-by-Side Split-Screen ---  
-    if (this.players.length === 2) {
-      // Remove the default camera.
-      if (this.cameras.main) {
-        this.cameras.remove(this.cameras.main);
-      }
-      this.playerCameras = [];
-      let camWidth = GAME_WIDTH / 2;
-      let camHeight = GAME_HEIGHT;
-      // Create two cameras – player 0 on the left, player 1 on the right.
-      this.players.forEach((player, i) => {
-        let x = i * camWidth;  // 0 for player 0, camWidth for player 1.
-        let y = 0;
-        let cam = this.cameras.add(x, y, camWidth, camHeight);
-        cam.startFollow(player.sprite);
-        this.playerCameras.push(cam);
-        // Save reference to the player's camera (for use in curse effects, etc.)
-        player.camera = cam;
-        // Create individual HUD overlays for each player.
-        player.hudText = this.add.text(x + 10, y + 10, "", { fontSize: '14px', fill: '#fff' })
-                                .setScrollFactor(0).setDepth(2000);
-      });
-    }
-
-    // --- Gamepad Assignment ---
-    // If there is at least one gamepad connected:
-    if (this.input.gamepad.total > 0) {
-      const pads = this.input.gamepad.gamepads;
-      if (pads.length >= 2) {
-        // If two gamepads are available, assign each to one player.
-        this.players[0].gamepad = pads[0];
-        this.players[1].gamepad = pads[1];
-      } else {
-        // If only one gamepad is connected, assign it only to player 0.
-        this.players[0].gamepad = pads[0];
-        // Player 1 will then use keyboard input.
-      }
-    }
-    // Optionally remove or adjust any 'gamepad connected' event listeners that might reassign controllers.
-
   }
   
   updateProjectileAttacks(delta) {
