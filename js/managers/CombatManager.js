@@ -1,3 +1,7 @@
+import MeleeAttack from '../classes/MeleeAttack.js';
+import ProjectileAttack from '../classes/ProjectileAttack.js';
+import PowerUp from '../classes/PowerUp.js';
+
 class ObjectPool {
   constructor(createFn, maxSize = 50, initialSize = 20) {
     this.createFn = createFn;
@@ -49,4 +53,52 @@ class ObjectPool {
   }
 }
 
-export default ObjectPool; 
+export default class CombatManager {
+  constructor(scene) {
+    this.scene = scene;
+    
+    // Initialize object pools
+    this.meleePool = new ObjectPool(() => new MeleeAttack(scene));
+    this.projectilePool = new ObjectPool(() => new ProjectileAttack(scene));
+    this.powerUpPool = new ObjectPool(() => new PowerUp(scene));
+    
+    // Track active objects
+    this.activeMeleeAttacks = new Set();
+    this.activeProjectiles = new Set();
+    this.activePowerUps = new Set();
+  }
+
+  spawnMeleeAttack(x, y, type, owner) {
+    const attack = this.meleePool.get();
+    if (attack) {
+      attack.activate(x, y, type, owner);
+      this.activeMeleeAttacks.add(attack);
+    }
+    return attack;
+  }
+
+  spawnProjectile(x, y, owner, dirX, dirY) {
+    const projectile = this.projectilePool.get();
+    if (projectile) {
+      projectile.activate(x, y, owner, dirX, dirY);
+      this.activeProjectiles.add(projectile);
+    }
+    return projectile;
+  }
+
+  spawnPowerUp(x, y, type) {
+    const powerUp = this.powerUpPool.get();
+    if (powerUp) {
+      powerUp.activate(x, y, type);
+      this.activePowerUps.add(powerUp);
+    }
+    return powerUp;
+  }
+
+  update(delta) {
+    // Update all active objects
+    this.meleePool.update(delta);
+    this.projectilePool.update(delta);
+    this.powerUpPool.update(delta);
+  }
+} 
