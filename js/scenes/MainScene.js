@@ -1,3 +1,4 @@
+import Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.module.js';
 import { GAME_WIDTH, GAME_HEIGHT, ARENA_CENTER, ARENA_RADIUS, PLAYER_SPEED } from '../helpers.js';
 import { createPolygonTexture, createCircleTexture } from '../helpers.js';
 import { GODS, GOD_CONFIG } from '../helpers.js';
