@@ -36,9 +36,9 @@ const GODS = [
 ];
 
 // Mapping of controller buttons (using indices from the Gamepad API)
-// Adjust these if your controller mapping differs.
+// Verify these indices match your Xbox controller mapping in your browser.
 const BUTTONS = {
-  A: 0, // Sprint (for movement)
+  A: 0, // Sprint (movement boost)
   B: 1, // Regular Attack
   X: 2, // Long Range Attack
   Y: 3  // Spin Attack
@@ -86,23 +86,55 @@ class Player {
     const deltaTime = this.scene.game.loop.delta / 1000;
     const currentTime = this.scene.time.now;
     
-    // --- Keyboard Fallback (for testing multiple players with one keyboard) ---
-    // If no gamepad is assigned, use a unique set of keys per player.
-    if (!this.gamepad) {
-      if (!this.keys) {
-        // For demonstration, all players use the same keys.
-        // To allow separate keyboard controls, you would assign different keys per player.
+    // --- Keyboard Fallback (for testing or when no gamepad assigned) ---
+    if (!this.keys) {
+      if (this.playerIndex === 0) {
         this.keys = this.scene.input.keyboard.addKeys({
           left: Phaser.Input.Keyboard.KeyCodes.LEFT,
           right: Phaser.Input.Keyboard.KeyCodes.RIGHT,
           up: Phaser.Input.Keyboard.KeyCodes.UP,
           down: Phaser.Input.Keyboard.KeyCodes.DOWN,
           sprint: Phaser.Input.Keyboard.KeyCodes.SHIFT,
-          attack1: Phaser.Input.Keyboard.KeyCodes.SPACE,  // Regular Attack
-          attack2: Phaser.Input.Keyboard.KeyCodes.Q,      // Long Range Attack
-          attack3: Phaser.Input.Keyboard.KeyCodes.E       // Spin Attack
+          attack1: Phaser.Input.Keyboard.KeyCodes.SPACE,
+          attack2: Phaser.Input.Keyboard.KeyCodes.Q,
+          attack3: Phaser.Input.Keyboard.KeyCodes.E
+        });
+      } else if (this.playerIndex === 1) {
+        this.keys = this.scene.input.keyboard.addKeys({
+          left: Phaser.Input.Keyboard.KeyCodes.A,
+          right: Phaser.Input.Keyboard.KeyCodes.D,
+          up: Phaser.Input.Keyboard.KeyCodes.W,
+          down: Phaser.Input.Keyboard.KeyCodes.S,
+          sprint: Phaser.Input.Keyboard.KeyCodes.CONTROL,
+          attack1: Phaser.Input.Keyboard.KeyCodes.F,
+          attack2: Phaser.Input.Keyboard.KeyCodes.G,
+          attack3: Phaser.Input.Keyboard.KeyCodes.H
+        });
+      } else if (this.playerIndex === 2) {
+        this.keys = this.scene.input.keyboard.addKeys({
+          left: Phaser.Input.Keyboard.KeyCodes.J,
+          right: Phaser.Input.Keyboard.KeyCodes.L,
+          up: Phaser.Input.Keyboard.KeyCodes.I,
+          down: Phaser.Input.Keyboard.KeyCodes.K,
+          sprint: Phaser.Input.Keyboard.KeyCodes.U,
+          attack1: Phaser.Input.Keyboard.KeyCodes.O,
+          attack2: Phaser.Input.Keyboard.KeyCodes.P,
+          attack3: Phaser.Input.Keyboard.KeyCodes.OPEN_BRACKET
+        });
+      } else if (this.playerIndex === 3) {
+        this.keys = this.scene.input.keyboard.addKeys({
+          left: Phaser.Input.Keyboard.KeyCodes.NUMPAD_4,
+          right: Phaser.Input.Keyboard.KeyCodes.NUMPAD_6,
+          up: Phaser.Input.Keyboard.KeyCodes.NUMPAD_8,
+          down: Phaser.Input.Keyboard.KeyCodes.NUMPAD_2,
+          sprint: Phaser.Input.Keyboard.KeyCodes.NUMPAD_0,
+          attack1: Phaser.Input.Keyboard.KeyCodes.NUMPAD_1,
+          attack2: Phaser.Input.Keyboard.KeyCodes.NUMPAD_3,
+          attack3: Phaser.Input.Keyboard.KeyCodes.NUMPAD_5
         });
       }
+    }
+
       // Movement using arrow keys.
       let velocityX = 0, velocityY = 0;
       if (this.keys.left.isDown) { velocityX = -this.speed; }
@@ -118,39 +150,45 @@ class Player {
       this.godText.x = this.sprite.x - 20;
       this.godText.y = this.sprite.y - 40;
       
-      // Attack checks using keyboard (each attack has its own trigger).
+      // Attack checks using keyboard.
       if (this.keys.attack1.isDown && (currentTime - this.lastAttackTime > this.attackCooldown)) {
-        console.log('Keyboard attack 1 triggered');
+        console.log('Keyboard attack 1 triggered for player ' + this.playerIndex);
         this.regularAttack();
         this.lastAttackTime = currentTime;
       }
       if (this.keys.attack2.isDown && (currentTime - this.lastAttackTime > this.attackCooldown)) {
-        console.log('Keyboard attack 2 triggered');
+        console.log('Keyboard attack 2 triggered for player ' + this.playerIndex);
         this.longRangeAttack();
         this.lastAttackTime = currentTime;
       }
       if (this.keys.attack3.isDown && (currentTime - this.lastAttackTime > this.attackCooldown)) {
-        console.log('Keyboard attack 3 triggered');
+        console.log('Keyboard attack 3 triggered for player ' + this.playerIndex);
         this.spinAttack();
         this.lastAttackTime = currentTime;
       }
     } else {
       // --- Gamepad Input ---
-      // Process attack input using individual gamepad buttons.
+      // For debugging: log gamepad button states (comment out if too noisy)
+      // console.log(`Player ${this.playerIndex} buttons:`, this.gamepad.buttons.map((b, i) => `#${i}: ${b.pressed}`));
+      
+      // Process attack input using gamepad buttons.
       if (currentTime - this.lastAttackTime > this.attackCooldown) {
         if (this.gamepad.buttons[BUTTONS.B].pressed) {
+          console.log(`Gamepad attack (Regular) triggered for player ${this.playerIndex}`);
           this.regularAttack();
           this.lastAttackTime = currentTime;
         } else if (this.gamepad.buttons[BUTTONS.X].pressed) {
+          console.log(`Gamepad attack (Long Range) triggered for player ${this.playerIndex}`);
           this.longRangeAttack();
           this.lastAttackTime = currentTime;
         } else if (this.gamepad.buttons[BUTTONS.Y].pressed) {
+          console.log(`Gamepad attack (Spin) triggered for player ${this.playerIndex}`);
           this.spinAttack();
           this.lastAttackTime = currentTime;
         }
       }
       
-      // Process movement using the left joystick (axes[0] and axes[1]).
+      // Process movement using left joystick (axes 0 and 1).
       let axisH = (this.gamepad.axes.length > 0) ? this.gamepad.axes[0].getValue() : 0;
       let axisV = (this.gamepad.axes.length > 1) ? this.gamepad.axes[1].getValue() : 0;
       let velocityX = axisH * this.speed;
@@ -168,23 +206,23 @@ class Player {
   
   // Regular Attack: spawns a projectile.
   regularAttack() {
-    console.log('Regular attack triggered');
+    console.log(`Player ${this.playerIndex} regular attack triggered`);
     this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'regular', this);
   }
   
   // Long Range Attack: spawns a faster projectile.
   longRangeAttack() {
-    console.log('Long range attack triggered');
+    console.log(`Player ${this.playerIndex} long range attack triggered`);
     this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'long', this);
   }
   
   // Spin Attack: simulates an area-of-effect attack.
   spinAttack() {
-    console.log('Spin attack triggered');
+    console.log(`Player ${this.playerIndex} spin attack triggered`);
     this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'spin', this);
   }
   
-  // Apply zone effect based on whether the player's god aligns with the zone.
+  // Apply zone effect based on player's god.
   applyZoneEffect(zone) {
     if (zone.god === this.god) {
       this.sprite.setTint(0x00ff00); // Boon: tint green.
@@ -212,7 +250,6 @@ class Enemy {
     this.scene = scene;
     this.sprite = scene.add.sprite(x, y, 'enemy');
     this.health = 50;
-    // Set a random cooldown period between attacks.
     this.attackCooldown = Phaser.Math.Between(2000, 5000);
     this.lastAttackTime = 0;
   }
@@ -225,7 +262,7 @@ class Enemy {
     }
   }
   
-  // Perform an attack that is telegraphed visually.
+  // Telegraphed attack with visual indicator.
   telegraphedAttack(time) {
     let attackPower = Phaser.Math.FloatBetween(0.25, 1.5);
     let telegraphDuration = Phaser.Math.Clamp(attackPower, 0.25, 1.5) * 1000;
@@ -242,12 +279,12 @@ class Enemy {
 // =======================
 class Zone {
   /**
-   * @param {Phaser.Scene} scene - The scene the zone belongs to.
-   * @param {number} x - X position of the zone.
-   * @param {number} y - Y position of the zone.
+   * @param {Phaser.Scene} scene - The scene this zone belongs to.
+   * @param {number} x - X position.
+   * @param {number} y - Y position.
    * @param {number} width - Zone width.
    * @param {number} height - Zone height.
-   * @param {string} god - The god associated with this zone.
+   * @param {string} god - Associated god.
    */
   constructor(scene, x, y, width, height, god) {
     this.scene = scene;
@@ -273,7 +310,7 @@ class MainScene extends Phaser.Scene {
   }
   
   preload() {
-    // Create placeholder textures for players, enemies, and projectiles.
+    // Create placeholder textures.
     this.createPlaceholderGraphics('player', 40, 40, 0x00aaff);
     this.createPlaceholderGraphics('enemy', 30, 30, 0xff00ff);
     this.createPlaceholderGraphics('projectile_regular', 10, 10, 0xffffff);
@@ -284,7 +321,7 @@ class MainScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(0x222222);
     
-    // Create Arena Zones.
+    // Create arena zones.
     this.zones = [];
     let numZones = GODS.length;
     let cols = 4;
@@ -304,7 +341,7 @@ class MainScene extends Phaser.Scene {
       }
     }
     
-    // Create Players (up to 4).
+    // Create up to 4 players.
     this.players = [];
     for (let i = 0; i < 4; i++) {
       let x = Phaser.Math.Between(50, GAME_WIDTH - 50);
@@ -313,22 +350,34 @@ class MainScene extends Phaser.Scene {
       this.players.push(player);
     }
     
-    // Listen for gamepad connections and assign each to a player (supports up to 4).
+    // Assign already-connected gamepads (if any) to players.
+    if (this.input.gamepad.total > 0) {
+      console.log("Gamepads already connected:", this.input.gamepad.gamepads);
+      this.input.gamepad.gamepads.forEach((pad, idx) => {
+        if (this.players[idx] && !this.players[idx].gamepad) {
+          this.players[idx].gamepad = pad;
+          console.log("Assigned gamepad", pad.id, "to player", idx);
+        }
+      });
+    }
+    
+    // Listen for new gamepad connections.
     this.input.gamepad.on('connected', (pad) => {
-      console.log('Gamepad connected:', pad.id);
+      console.log("Gamepad connected:", pad.id);
+      // Assign gamepads to players (supports up to 4).
       this.players.forEach((player, idx) => {
-        // Only assign if the player doesn't already have a gamepad.
         if (!player.gamepad && this.input.gamepad.gamepads[idx]) {
           player.gamepad = this.input.gamepad.gamepads[idx];
+          console.log("Assigned gamepad", pad.id, "to player", idx);
         }
       });
     });
     
-    // Create Projectile Groups.
+    // Create projectile groups.
     this.projectiles = this.add.group();
     this.enemyProjectiles = this.add.group();
     
-    // Create NPC Enemies.
+    // Create NPC enemies.
     this.enemies = [];
     for (let i = 0; i < 5; i++) {
       let x = Phaser.Math.Between(100, GAME_WIDTH - 100);
@@ -339,7 +388,7 @@ class MainScene extends Phaser.Scene {
   }
   
   update(time, delta) {
-    // Update each player.
+    // Update players.
     this.players.forEach(player => {
       player.update();
       let inZone = false;
@@ -354,7 +403,7 @@ class MainScene extends Phaser.Scene {
       }
     });
     
-    // Update each enemy.
+    // Update enemies.
     this.enemies.forEach(enemy => {
       enemy.update(time, delta);
     });
@@ -376,7 +425,7 @@ class MainScene extends Phaser.Scene {
       }
     });
     
-    // Save player progress (for demonstration).
+    // Save player progress.
     let progress = { players: this.players.map(p => ({ god: p.god, health: p.health, ammo: p.ammo })) };
     localStorage.setItem('godlightProgress', JSON.stringify(progress));
   }
@@ -392,7 +441,7 @@ class MainScene extends Phaser.Scene {
   
   // Helper: Spawn a Projectile from a Player.
   spawnProjectile(x, y, type, player) {
-    console.log(`Spawning ${type} projectile at (${x}, ${y})`);
+    console.log(`Spawning ${type} projectile for player ${player.playerIndex} at (${x}, ${y})`);
     let projKey = 'projectile_regular';
     let speed = 300;
     if (type === 'long') {
@@ -404,18 +453,17 @@ class MainScene extends Phaser.Scene {
     }
     let projectile = this.add.sprite(x, y, projKey);
     
-    // Determine firing direction from the right joystick (axes[2] and axes[3]).
+    // Determine attack direction from right joystick (axes[2] and axes[3]).
     let attackDirX = 0, attackDirY = 0;
     if (player.gamepad && player.gamepad.axes.length >= 4) {
       attackDirX = player.gamepad.axes[2].getValue();
       attackDirY = player.gamepad.axes[3].getValue();
     }
-    // If the right joystick is near neutral, default to right.
+    // If near neutral, default to firing to the right.
     if (Math.abs(attackDirX) < 0.1 && Math.abs(attackDirY) < 0.1) {
       attackDirX = 1;
       attackDirY = 0;
     } else {
-      // Normalize the attack direction.
       let mag = Math.sqrt(attackDirX * attackDirX + attackDirY * attackDirY);
       attackDirX /= mag;
       attackDirY /= mag;
