@@ -50,16 +50,33 @@ export default class Player {
     this.lastAttackTime = 0;
     this.attackCooldown = 500;
     
-    // Input
-    this.keys = scene.input.keyboard.addKeys({
-      up: 'W',
-      down: 'S',
-      left: 'A',
-      right: 'D',
-      melee1: 'J',
-      melee2: 'K',
-      projectile: 'L'
-    });
+    // Input setup
+    this.gamepad = null;
+    this.keys = null;
+    
+    if (playerIndex === 0) {
+      this.keys = scene.input.keyboard.addKeys({
+        up: Phaser.Input.Keyboard.KeyCodes.UP,
+        down: Phaser.Input.Keyboard.KeyCodes.DOWN,
+        left: Phaser.Input.Keyboard.KeyCodes.LEFT,
+        right: Phaser.Input.Keyboard.KeyCodes.RIGHT,
+        sprint: Phaser.Input.Keyboard.KeyCodes.SHIFT,
+        melee1: Phaser.Input.Keyboard.KeyCodes.SPACE,
+        melee2: Phaser.Input.Keyboard.KeyCodes.Q,
+        projectile: Phaser.Input.Keyboard.KeyCodes.E
+      });
+    } else if (playerIndex === 1) {
+      this.keys = scene.input.keyboard.addKeys({
+        up: Phaser.Input.Keyboard.KeyCodes.W,
+        down: Phaser.Input.Keyboard.KeyCodes.S,
+        left: Phaser.Input.Keyboard.KeyCodes.A,
+        right: Phaser.Input.Keyboard.KeyCodes.D,
+        sprint: Phaser.Input.Keyboard.KeyCodes.SHIFT,
+        melee1: Phaser.Input.Keyboard.KeyCodes.J,
+        melee2: Phaser.Input.Keyboard.KeyCodes.K,
+        projectile: Phaser.Input.Keyboard.KeyCodes.L
+      });
+    }
     
     // UI elements
     this.nameText = scene.add.text(x - 20, y - 70, "P" + playerIndex, { fontSize: '12px', fill: '#fff' });
@@ -70,61 +87,85 @@ export default class Player {
   update(time, delta) {
     const deltaTime = delta / 1000;
     
-    // Movement
-    let dx = 0, dy = 0;
-    
-    if (this.keys.up.isDown) dy -= 1;
-    if (this.keys.down.isDown) dy += 1;
-    if (this.keys.left.isDown) dx -= 1;
-    if (this.keys.right.isDown) dx += 1;
-    
-    if (dx !== 0 || dy !== 0) {
-      const mag = Math.sqrt(dx * dx + dy * dy);
-      this.sprite.x += (dx / mag) * this.speed * deltaTime;
-      this.sprite.y += (dy / mag) * this.speed * deltaTime;
-      this.lastFacing.x = dx / mag;
-      this.lastFacing.y = dy / mag;
+    // Handle movement and attacks based on input type
+    if (!this.gamepad) {
+      // Keyboard controls
+      if (this.keys) {
+        let dx = 0, dy = 0;
+        if (this.keys.left.isDown) dx -= 1;
+        if (this.keys.right.isDown) dx += 1;
+        if (this.keys.up.isDown) dy -= 1;
+        if (this.keys.down.isDown) dy += 1;
+        
+        if (dx !== 0 || dy !== 0) {
+          const mag = Math.sqrt(dx * dx + dy * dy);
+          const speed = this.keys.sprint.isDown ? this.speed * 1.5 : this.speed;
+          this.sprite.x += (dx / mag) * speed * deltaTime;
+          this.sprite.y += (dy / mag) * speed * deltaTime;
+          this.lastFacing.x = dx / mag;
+          this.lastFacing.y = dy / mag;
+        }
+
+        // Attack inputs
+        if (time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
+          if (this.keys.melee1.isDown) {
+            this.scene.combatManager.spawnMeleeAttack(this.sprite.x, this.sprite.y, "regular", this);
+            this.currentBullets--;
+            this.lastAttackTime = time;
+          } 
+          else if (this.keys.melee2.isDown) {
+            this.scene.combatManager.spawnMeleeAttack(this.sprite.x, this.sprite.y, "spin", this);
+            this.currentBullets--;
+            this.lastAttackTime = time;
+          }
+          else if (this.keys.projectile.isDown) {
+            this.scene.combatManager.spawnProjectile(this.sprite.x, this.sprite.y, this, this.lastFacing.x, this.lastFacing.y);
+            this.currentBullets--;
+            this.lastAttackTime = time;
+          }
+        }
+      }
+    } else {
+      // Gamepad controls
+      const BUTTONS = {
+        A: 0,
+        B: 1,
+        X: 2,
+        Y: 3
+      };
+
+      let axisH = this.gamepad.axes.length > 0 ? this.gamepad.axes[0].getValue() : 0;
+      let axisV = this.gamepad.axes.length > 1 ? this.gamepad.axes[1].getValue() : 0;
+      
+      if (Math.abs(axisH) > 0.1 || Math.abs(axisV) > 0.1) {
+        let speed = this.gamepad.buttons[BUTTONS.A].pressed ? this.speed * 1.5 : this.speed;
+        this.sprite.x += axisH * speed * deltaTime;
+        this.sprite.y += axisV * speed * deltaTime;
+        
+        let mag = Math.sqrt(axisH * axisH + axisV * axisV);
+        this.lastFacing.x = axisH / mag;
+        this.lastFacing.y = axisV / mag;
+      }
+
+      if (time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
+        if (this.gamepad.buttons[BUTTONS.B].pressed) {
+          this.scene.combatManager.spawnMeleeAttack(this.sprite.x, this.sprite.y, "regular", this);
+          this.currentBullets--;
+          this.lastAttackTime = time;
+        } else if (this.gamepad.buttons[BUTTONS.X].pressed) {
+          this.scene.combatManager.spawnMeleeAttack(this.sprite.x, this.sprite.y, "spin", this);
+          this.currentBullets--;
+          this.lastAttackTime = time;
+        } else if (this.gamepad.buttons[BUTTONS.Y].pressed) {
+          this.scene.combatManager.spawnProjectile(this.sprite.x, this.sprite.y, this, this.lastFacing.x, this.lastFacing.y);
+          this.currentBullets--;
+          this.lastAttackTime = time;
+        }
+      }
     }
     
-    // Attack inputs
-    if (time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
-      if (this.keys.melee1.isDown) {
-        this.scene.combatManager.spawnMeleeAttack(
-          this.sprite.x,
-          this.sprite.y,
-          "regular",
-          this
-        );
-        this.currentBullets--;
-        this.lastAttackTime = time;
-      } 
-      else if (this.keys.melee2.isDown) {
-        this.scene.combatManager.spawnMeleeAttack(
-          this.sprite.x,
-          this.sprite.y,
-          "spin",
-          this
-        );
-        this.currentBullets--;
-        this.lastAttackTime = time;
-      }
-      else if (this.keys.projectile.isDown) {
-        this.scene.combatManager.spawnProjectile(
-          this.sprite.x,
-          this.sprite.y,
-          this,
-          this.lastFacing.x,
-          this.lastFacing.y
-        );
-        this.currentBullets--;
-        this.lastAttackTime = time;
-      }
-    }
-    
-    // Clamp to arena
+    // Update UI and position
     this.clampToArena();
-    
-    // Update UI
     this.updateHUD();
   }
 
