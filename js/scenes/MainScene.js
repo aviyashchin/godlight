@@ -153,48 +153,27 @@ export default class MainScene extends Phaser.Scene {
       }
     }
     
+    // ...
     // Create split-screen cameras if more than one player.
-    if (this.players.length > 1) {
+    if (this.players.length === 2) {
+      // Remove the default camera.
       this.cameras.remove(this.cameras.main);
       this.playerCameras = [];
-      let numPlayers = this.players.length;
-      if (numPlayers === 2) {
-        this.players.forEach((player, i) => {
-          let cam = this.cameras.add(0, i * (GAME_HEIGHT / 2), GAME_WIDTH, GAME_HEIGHT / 2);
-          cam.startFollow(player.sprite);
-          this.playerCameras.push(cam);
-          // Assign the camera to the player for curse effects.
-          player.camera = cam;
-          // Create an individual HUD for this player.
-          player.hudText = this.add.text(cam.x + 10, cam.y + cam.height - 50, "", { fontSize: '14px', fill: '#fff' })
-                                      .setScrollFactor(0).setDepth(2000);
-          // Optionally, tie the HUD's viewport to the camera.
-        });
-      } else if (numPlayers === 4) {
-        let camWidth = GAME_WIDTH / 2;
-        let camHeight = GAME_HEIGHT / 2;
-        this.players.forEach((player, i) => {
-          let x = (i % 2) * camWidth;
-          let y = Math.floor(i / 2) * camHeight;
-          let cam = this.cameras.add(x, y, camWidth, camHeight);
-          cam.startFollow(player.sprite);
-          this.playerCameras.push(cam);
-          player.camera = cam;
-          player.hudText = this.add.text(x + 10, y + camHeight - 50, "", { fontSize: '14px', fill: '#fff' })
-                                      .setScrollFactor(0).setDepth(2000);
-        });
-      } else {
-        let camWidth = GAME_WIDTH / numPlayers;
-        this.players.forEach((player, i) => {
-          let x = i * camWidth;
-          let cam = this.cameras.add(x, 0, camWidth, GAME_HEIGHT);
-          cam.startFollow(player.sprite);
-          this.playerCameras.push(cam);
-          player.camera = cam;
-          player.hudText = this.add.text(x + 10, GAME_HEIGHT - 50, "", { fontSize: '14px', fill: '#fff' })
-                                      .setScrollFactor(0).setDepth(2000);
-        });
-      }
+      let camWidth = GAME_WIDTH / 2;
+      let camHeight = GAME_HEIGHT;
+      this.players.forEach((player, i) => {
+        // For side-by-side, player 0 is on the left and player 1 is on the right.
+        let x = i * camWidth;
+        let y = 0;
+        let cam = this.cameras.add(x, y, camWidth, camHeight);
+        cam.startFollow(player.sprite);
+        this.playerCameras.push(cam);
+        // Assign the camera to the player for any camera-specific effects (such as curse-induced rotations).
+        player.camera = cam;
+        // Create an individual HUD overlay for each player.
+        player.hudText = this.add.text(x + 10, y + 10, "", { fontSize: '14px', fill: '#fff' })
+                                .setScrollFactor(0).setDepth(2000);
+      });
     }
     
     // Instantiate the CurseManager.
