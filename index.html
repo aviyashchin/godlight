@@ -74,13 +74,53 @@ class Player {
     
     // To be assigned when a gamepad is connected.
     this.gamepad = null;
+    this.lastAttackTime = 0;
+    this.attackCooldown = 500; // milliseconds (adjust as needed)
   }
   
   // Update method called every frame.
   update() {
     const deltaTime = this.scene.game.loop.delta / 1000;
     const currentTime = this.scene.time.now;
-    
+  // Fallback for testing: use keyboard keys for attack if gamepad isn't connected
+    if (!this.gamepad) {
+      const keys = this.scene.input.keyboard.addKeys({
+        attack1: Phaser.Input.Keyboard.KeyCodes.SPACE,
+        attack2: Phaser.Input.Keyboard.KeyCodes.Q,
+        attack3: Phaser.Input.Keyboard.KeyCodes.E
+      });
+      if (keys.attack1.isDown && (currentTime - this.lastAttackTime > this.attackCooldown)) {
+        console.log('Keyboard attack 1 triggered');
+        this.regularAttack();
+        this.lastAttackTime = currentTime;
+      }
+      if (keys.attack2.isDown && (currentTime - this.lastAttackTime > this.attackCooldown)) {
+        console.log('Keyboard attack 2 triggered');
+        this.longRangeAttack();
+        this.lastAttackTime = currentTime;
+      }
+      if (keys.attack3.isDown && (currentTime - this.lastAttackTime > this.attackCooldown)) {
+        console.log('Keyboard attack 3 triggered');
+        this.spinAttack();
+        this.lastAttackTime = currentTime;
+      }
+    }
+  
+    if (this.gamepad) {
+      // Use a cooldown to avoid multiple triggers per press
+      if (this.gamepad.buttons[BUTTONS.B].pressed && (currentTime - this.lastAttackTime > this.attackCooldown)) {
+        this.regularAttack();
+        this.lastAttackTime = currentTime;
+      }
+      if (this.gamepad.buttons[BUTTONS.X].pressed && (currentTime - this.lastAttackTime > this.attackCooldown)) {
+        this.longRangeAttack();
+        this.lastAttackTime = currentTime;
+      }
+      if (this.gamepad.buttons[BUTTONS.Y].pressed && (currentTime - this.lastAttackTime > this.attackCooldown)) {
+        this.spinAttack();
+        this.lastAttackTime = currentTime;
+      }
+    }  
     // Process movement from gamepad (or add fallback keyboard controls)
     if (this.gamepad) {
       let axisH = (this.gamepad.axes.length > 0) ? this.gamepad.axes[0].getValue() : 0;
@@ -118,16 +158,19 @@ class Player {
   
   // Regular Attack: spawns a projectile.
   regularAttack() {
+    console.log('Regular attack triggered');
     this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'regular', this);
   }
   
   // Long Range Attack: spawns a faster projectile.
   longRangeAttack() {
+    console.log('Long range attack triggered');
     this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'long', this);
   }
   
   // Spin Attack: simulates an area-of-effect attack.
   spinAttack() {
+    console.log('Spin attack triggered');
     this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'spin', this);
   }
   
@@ -349,6 +392,7 @@ class MainScene extends Phaser.Scene {
         proj.destroy();
       }
     });
+
     
     this.enemyProjectiles.getChildren().forEach(proj => {
       proj.x += proj.velX * delta / 1000;
@@ -381,6 +425,7 @@ class MainScene extends Phaser.Scene {
   // Helper: Spawn a Projectile from a Player
   // -------------------------
   spawnProjectile(x, y, type, player) {
+    console.log(`Spawning ${type} projectile at (${x}, ${y})`);
     let projKey = 'projectile_regular';
     let speed = 300;
     if (type === 'long') {
@@ -396,6 +441,7 @@ class MainScene extends Phaser.Scene {
     projectile.owner = player;
     this.projectiles.add(projectile);
   }
+
   
   // -------------------------
   // Helper: Spawn an Enemy Projectile as Part of an Attack
@@ -430,5 +476,3 @@ const game = new Phaser.Game(config);
 </script>
 </body>
 </html>
-git config pull.rebase true
-git pull
