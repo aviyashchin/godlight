@@ -29,24 +29,24 @@ class ObjectPool {
     if (this.activeObjects.has(obj)) {
       obj.active = false;
       this.activeObjects.delete(obj);
+      obj.destroy();
     }
   }
 
   update(delta) {
     this.activeObjects.forEach(obj => {
-      if (!obj.isActive()) {
+      if (!obj.update(delta)) {
         this.release(obj);
-      } else {
-        obj.update(delta);
       }
     });
   }
 
   clear() {
-    this.activeObjects.clear();
-    this.pool.forEach(obj => {
-      obj.active = false;
+    this.activeObjects.forEach(obj => {
+      obj.destroy();
     });
+    this.activeObjects.clear();
+    this.pool = [];
   }
 }
 
