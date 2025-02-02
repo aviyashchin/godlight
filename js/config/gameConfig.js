@@ -15,68 +15,37 @@ export const GODS = [
   { name: "Hades", color: 0x800080 },
   { name: "Ares", color: 0xff0000 },
   { name: "Athena", color: 0x808080 },
-  { name: "Apollo", color: 0xffa500 }
+  { name: "Apollo", color: 0xffa500 },
+  { name: "Artemis", color: 0x008000 },
+  { name: "Demeter", color: 0x964B00 },
+  { name: "Dionysus", color: 0x800020 },
+  { name: "Hephaestus", color: 0xCD7F32 },
+  { name: "Hermes", color: 0xC0C0C0 },
+  { name: "Hera", color: 0x4B0082 }
 ];
 
 export const GOD_CONFIG = {
-  Zeus: {
-    health: 100,
-    damage: 12,
-    shield: 20,
-    bullets: 10,
-    bulletReload: 1000,
-    shieldReload: 5000,
-    zoneColor: 0xffff00
-  },
-  Poseidon: {
-    health: 120,
-    damage: 10,
-    shield: 25,
-    bullets: 8,
-    bulletReload: 1200,
-    shieldReload: 4500,
-    zoneColor: 0x0000ff
-  },
-  Hades: {
-    health: 150,
-    damage: 8,
-    shield: 30,
-    bullets: 6,
-    bulletReload: 1500,
-    shieldReload: 4000,
-    zoneColor: 0x800080
-  },
-  Ares: {
-    health: 90,
-    damage: 15,
-    shield: 15,
-    bullets: 12,
-    bulletReload: 800,
-    shieldReload: 6000,
-    zoneColor: 0xff0000
-  },
-  Athena: {
-    health: 110,
-    damage: 11,
-    shield: 22,
-    bullets: 9,
-    bulletReload: 1100,
-    shieldReload: 4800,
-    zoneColor: 0x808080
-  },
-  Apollo: {
-    health: 100,
-    damage: 13,
-    shield: 18,
-    bullets: 11,
-    bulletReload: 900,
-    shieldReload: 5200,
-    zoneColor: 0xffa500
-  }
+  Zeus: { health: 150, damage: 20, shield: 40, bullets: 12, bulletReload: 900, shieldReload: 4500, zoneColor: 0xffd700 },
+  Poseidon: { health: 170, damage: 15, shield: 45, bullets: 14, bulletReload: 800, shieldReload: 4000, zoneColor: 0x1e90ff },
+  Athena: { health: 130, damage: 12, shield: 55, bullets: 15, bulletReload: 700, shieldReload: 3500, zoneColor: 0xc0c0c0 },
+  Ares: { health: 180, damage: 30, shield: 20, bullets: 8, bulletReload: 1100, shieldReload: 5500, zoneColor: 0xff4500 },
+  Apollo: { health: 130, damage: 18, shield: 35, bullets: 12, bulletReload: 900, shieldReload: 4500, zoneColor: 0xffff66 },
+  Artemis: { health: 125, damage: 16, shield: 30, bullets: 12, bulletReload: 850, shieldReload: 4250, zoneColor: 0x66ff66 },
+  Hephaestus: { health: 200, damage: 22, shield: 25, bullets: 10, bulletReload: 1200, shieldReload: 6000, zoneColor: 0xcd853f },
+  Hermes: { health: 130, damage: 14, shield: 40, bullets: 14, bulletReload: 750, shieldReload: 3750, zoneColor: 0x3cb371 },
+  Dionysus: { health: 140, damage: 13, shield: 45, bullets: 12, bulletReload: 900, shieldReload: 4500, zoneColor: 0xba55d3 },
+  Demeter: { health: 150, damage: 12, shield: 50, bullets: 15, bulletReload: 800, shieldReload: 4000, zoneColor: 0x20b2aa },
+  Hera: { health: 160, damage: 15, shield: 70, bullets: 16, bulletReload: 700, shieldReload: 3500, zoneColor: 0xff69b4 },
+  Hades: { health: 160, damage: 24, shield: 35, bullets: 10, bulletReload: 1000, shieldReload: 5000, zoneColor: 0x8b008b }
 };
 
 // Combat configuration
 export const GAME_CONFIG = {
+  arena: {
+    WIDTH: GAME_WIDTH,
+    HEIGHT: GAME_HEIGHT,
+    RADIUS: ARENA_RADIUS
+  },
   combat: {
     COOLDOWNS: {
       MELEE: 500,
