@@ -90,12 +90,12 @@ export default class Enemy {
       
       if (dist < this.attackRange && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
         if (Math.random() < 0.7) {
-          this.scene.spawnProjectileAttack(
+          this.scene.combatManager.spawnProjectile(
             this.sprite.x, this.sprite.y,
             this, dx/dist, dy/dist
           );
         } else {
-          this.scene.spawnMeleeAttack(
+          this.scene.combatManager.spawnMeleeAttack(
             this.sprite.x, this.sprite.y,
             Math.random() < 0.3 ? "spin" : "regular",
             this
