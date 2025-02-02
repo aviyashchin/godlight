@@ -128,33 +128,14 @@ export default class Player {
 
       // Gamepad attacks
       if (currentTime - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
-        if (this.gamepad.X && this.currentBullets > 0) {
-          this.scene.combatManager.spawnMeleeAttack(
-            this.sprite.x,
-            this.sprite.y,
-            "regular",
-            this
-          );
-          this.currentBullets--;
+        if (this.gamepad.buttons[BUTTONS.B].pressed) {
+          this.meleeAttackRegular();
           this.lastAttackTime = currentTime;
-        } else if (this.gamepad.Y && this.currentBullets > 0) {
-          this.scene.combatManager.spawnMeleeAttack(
-            this.sprite.x,
-            this.sprite.y,
-            "spin",
-            this
-          );
-          this.currentBullets--;
+        } else if (this.gamepad.buttons[BUTTONS.X].pressed) {
+          this.meleeAttackSpin();
           this.lastAttackTime = currentTime;
-        } else if (this.gamepad.A && this.currentBullets > 0) {
-          this.scene.combatManager.spawnProjectile(
-            this.sprite.x,
-            this.sprite.y,
-            this,
-            this.lastFacing.x,
-            this.lastFacing.y
-          );
-          this.currentBullets--;
+        } else if (this.gamepad.buttons[BUTTONS.Y].pressed) {
+          this.projectileAttack();
           this.lastAttackTime = currentTime;
         }
       }
