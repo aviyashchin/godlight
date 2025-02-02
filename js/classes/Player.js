@@ -1,5 +1,30 @@
 import { PLAYER_SPEED, ARENA_CENTER, ARENA_RADIUS } from '../helpers.js';
 import { GODS, GOD_CONFIG } from '../helpers.js';
+import { State, StateMachine } from './StateMachine.js';
+import GAME_CONFIG from '../config/gameConfig.js';
+
+class IdleState extends State {
+  constructor() {
+    super('idle');
+  }
+  
+  execute(player) {
+    player.updateMovement();
+    player.checkAttackInputs();
+  }
+}
+
+class SprintState extends State {
+  execute(player) {
+    player.speed = GAME_CONFIG.player.BASE_SPEED * GAME_CONFIG.player.SPRINT_MULTIPLIER;
+    player.updateMovement();
+    player.checkAttackInputs();
+  }
+  
+  exit(player) {
+    player.speed = GAME_CONFIG.player.BASE_SPEED;
+  }
+}
 
 export default class Player {
   constructor(scene, x, y, playerIndex, shapeSides) {
@@ -35,8 +60,23 @@ export default class Player {
     this.lastAttackTime = 0;
     this.attackCooldown = 500;
     this.lastFacing = { x: 1, y: 0 };
+    this.initializeStateMachine();
   }
+
+  initializeStateMachine() {
+    this.stateMachine = new StateMachine(this)
+      .addState(new IdleState())
+      .addState(new SprintState());
+    this.stateMachine.setState('idle');
+  }
+
   update() {
+    this.stateMachine.update();
+    this.updateHUD();
+    this.updateHealthBar();
+  }
+
+  updateHUD() {
     const delta = this.scene.game.loop.delta;
     const deltaTime = delta / 1000;
     const currentTime = this.scene.time.now;
@@ -51,6 +91,46 @@ export default class Player {
     this.bulletText.setText("Ammo: " + this.currentBullets);
     this.bulletText.setPosition(this.sprite.x - 20, this.sprite.y - 55);
     
+    this.nameText.setText("P" + this.playerIndex + ": " + this.god);
+    this.nameText.setPosition(this.sprite.x - 20, this.sprite.y - 70);
+  }
+
+  updateHealthBar() {
+    this.healthBar.clear();
+    const barWidth = 40, barHeight = 6;
+    let healthPercent = Phaser.Math.Clamp(this.health/this.maxHealth, 0, 1);
+    this.healthBar.fillStyle(0xff0000);
+    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 80, barWidth, barHeight);
+    this.healthBar.fillStyle(0x00ff00);
+    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 80, barWidth * healthPercent, barHeight);
+    if (this.shield > 0) {
+      this.healthBar.lineStyle(4, 0x0000ff, 1);
+      this.healthBar.strokeCircle(this.sprite.x, this.sprite.y, 30);
+    }
+  }
+
+  meleeAttackRegular() {
+    if (this.currentBullets <= 0) return;
+    this.currentBullets--;
+    this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "regular", this);
+  }
+
+  meleeAttackSpin() {
+    if (this.currentBullets <= 0) return;
+    this.currentBullets--;
+    this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "spin", this);
+  }
+
+  projectileAttack() {
+    if (this.currentBullets <= 0) return;
+    this.currentBullets--;
+    this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, this.lastFacing.x, this.lastFacing.y);
+  }
+
+  updateMovement() {
+    const delta = this.scene.game.loop.delta;
+    const deltaTime = delta / 1000;
+    const currentTime = this.scene.time.now;
     if (!this.gamepad) {
       if (!this.keys) {
         if (this.playerIndex === 0) {
@@ -161,36 +241,33 @@ export default class Player {
     this.sprite.rotation = Math.atan2(this.lastFacing.y, this.lastFacing.x) + Math.PI/2;
     this.nameText.setText("P" + this.playerIndex + ": " + this.god);
     this.nameText.setPosition(this.sprite.x - 20, this.sprite.y - 70);
-    this.updateHealthBar();
   }
-  meleeAttackRegular() {
-    if (this.currentBullets <= 0) return;
-    this.currentBullets--;
-    this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "regular", this);
-  }
-  meleeAttackSpin() {
-    if (this.currentBullets <= 0) return;
-    this.currentBullets--;
-    this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "spin", this);
-  }
-  projectileAttack() {
-    if (this.currentBullets <= 0) return;
-    this.currentBullets--;
-    this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, this.lastFacing.x, this.lastFacing.y);
-  }
-  updateHealthBar() {
-    this.healthBar.clear();
-    const barWidth = 40, barHeight = 6;
-    let healthPercent = Phaser.Math.Clamp(this.health/this.maxHealth, 0, 1);
-    this.healthBar.fillStyle(0xff0000);
-    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 80, barWidth, barHeight);
-    this.healthBar.fillStyle(0x00ff00);
-    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 80, barWidth * healthPercent, barHeight);
-    if (this.shield > 0) {
-      this.healthBar.lineStyle(4, 0x0000ff, 1);
-      this.healthBar.strokeCircle(this.sprite.x, this.sprite.y, 30);
+
+  checkAttackInputs() {
+    const currentTime = this.scene.time.now;
+    if (currentTime - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
+      if (this.keys && this.keys.melee1.isDown) {
+        this.meleeAttackRegular();
+        this.lastAttackTime = currentTime;
+      } else if (this.keys && this.keys.melee2.isDown) {
+        this.meleeAttackSpin();
+        this.lastAttackTime = currentTime;
+      } else if (this.keys && this.keys.projectile.isDown) {
+        this.projectileAttack();
+        this.lastAttackTime = currentTime;
+      } else if (this.gamepad && this.gamepad.buttons[1].pressed) {
+        this.meleeAttackRegular();
+        this.lastAttackTime = currentTime;
+      } else if (this.gamepad && this.gamepad.buttons[2].pressed) {
+        this.meleeAttackSpin();
+        this.lastAttackTime = currentTime;
+      } else if (this.gamepad && this.gamepad.buttons[3].pressed) {
+        this.projectileAttack();
+        this.lastAttackTime = currentTime;
+      }
     }
   }
+
   destroy() {
     this.sprite.destroy();
     this.nameText.destroy();
