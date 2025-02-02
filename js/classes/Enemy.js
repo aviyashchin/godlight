@@ -1,3 +1,4 @@
+// js/classes/Enemy.js
 import { ENEMY_SPEED, ARENA_CENTER, ARENA_RADIUS } from '../helpers.js';
 import { GODS, GOD_CONFIG } from '../helpers.js';
 
@@ -45,31 +46,7 @@ export default class Enemy {
       this.lastReloadTime = time;
     }
     
-    // Use EasyStar for pathfinding in chase state.
-    let path = null;
-    if (this.state === "chase") {
-      let nearest = null, minDist = Infinity;
-      let allTargets = this.scene.players.concat(this.scene.enemies.filter(e => e !== this));
-      for (let target of allTargets) {
-        let dx = target.sprite.x - this.sprite.x;
-        let dy = target.sprite.y - this.sprite.y;
-        let dist = Math.sqrt(dx*dx+dy*dy);
-        if (dist < minDist) { minDist = dist; nearest = target; }
-      }
-      if (nearest) {
-        let startX = Math.floor(this.sprite.x / 32);
-        let startY = Math.floor(this.sprite.y / 32);
-        let endX = Math.floor(nearest.sprite.x / 32);
-        let endY = Math.floor(nearest.sprite.y / 32);
-        window.easyStar.findPath(startX, startY, endX, endY, (foundPath) => {
-          if (foundPath !== null && foundPath.length > 1) {
-            path = foundPath;
-          }
-        });
-        window.easyStar.calculate();
-      }
-    }
-    
+    // Determine nearest target.
     let nearest = null, minDist = Infinity;
     let allTargets = this.scene.players.concat(this.scene.enemies.filter(e => e !== this));
     for (let target of allTargets) {
@@ -78,19 +55,23 @@ export default class Enemy {
       let dist = Math.sqrt(dx*dx+dy*dy);
       if (dist < minDist) { minDist = dist; nearest = target; }
     }
-    if (this.health < this.maxHealth * 0.3) {
-      this.state = "retreat";
-    } else if (this.scene.meleeAttacks.some(a => Phaser.Geom.Intersects.RectangleToRectangle(a.getBounds(), this.sprite.getBounds()))) {
-      this.state = "dodge";
-    } else if (nearest && minDist < 500) {
-      this.state = "chase";
-    } else if (!this.homeZone || !this.homeZone.contains(this.sprite.x, this.sprite.y)) {
-      this.state = "home";
-    } else {
-      this.state = "patrol";
+    
+    // New defensive state: if health falls below 20%, enemy retreats defensively.
+    if (this.health < this.maxHealth * 0.2) {
+      this.state = "defensive";
     }
     
-    if (this.state === "home" && this.homeZone) {
+    if (this.state === "defensive") {
+      if (nearest) {
+        let dx = this.sprite.x - nearest.sprite.x;
+        let dy = this.sprite.y - nearest.sprite.y;
+        let mag = Math.sqrt(dx*dx+dy*dy);
+        if (mag > 0) {
+          this.sprite.x += (dx/mag) * this.speed * deltaTime;
+          this.sprite.y += (dy/mag) * this.speed * deltaTime;
+        }
+      }
+    } else if (this.state === "home" && this.homeZone) {
       let dx = this.homeZone.centerX - this.sprite.x;
       let dy = this.homeZone.centerY - this.sprite.y;
       let mag = Math.sqrt(dx*dx+dy*dy);
@@ -106,18 +87,7 @@ export default class Enemy {
       this.sprite.x += this.patrolDirection.x * this.speed * deltaTime;
       this.sprite.y += this.patrolDirection.y * this.speed * deltaTime;
     } else if (this.state === "chase") {
-      if (path && path.length > 1) {
-        let nextStep = path[1];
-        let targetX = nextStep.x * 32 + 16;
-        let targetY = nextStep.y * 32 + 16;
-        let dx = targetX - this.sprite.x;
-        let dy = targetY - this.sprite.y;
-        let mag = Math.sqrt(dx*dx+dy*dy);
-        if (mag > 0) {
-          this.sprite.x += (dx/mag) * this.speed * deltaTime;
-          this.sprite.y += (dy/mag) * this.speed * deltaTime;
-        }
-      } else if (nearest) {
+      if (nearest) {
         let dx = nearest.sprite.x - this.sprite.x;
         let dy = nearest.sprite.y - this.sprite.y;
         let mag = Math.sqrt(dx*dx+dy*dy);
@@ -135,20 +105,9 @@ export default class Enemy {
         this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, dirX, dirY);
         this.lastAttackTime = time;
       }
-    } else if (this.state === "retreat") {
-      if (nearest) {
-        let dx = this.sprite.x - nearest.sprite.x;
-        let dy = this.sprite.y - nearest.sprite.y;
-        let mag = Math.sqrt(dx*dx+dy*dy);
-        if (mag > 0) {
-          this.sprite.x += (dx/mag) * this.speed * deltaTime;
-          this.sprite.y += (dy/mag) * this.speed * deltaTime;
-        }
-      }
-    } else if (this.state === "dodge") {
-      this.sprite.x += this.speed * deltaTime;
     }
     
+    // Clamp enemy within arena.
     let dxClamp = this.sprite.x - ARENA_CENTER.x;
     let dyClamp = this.sprite.y - ARENA_CENTER.y;
     let distClamp = Math.sqrt(dxClamp*dxClamp+dyClamp*dyClamp);

@@ -61,15 +61,17 @@ GodLight/
 │   │   ├── MeleeAttack.js
 │   │   ├── PieZone.js
 │   │   ├── PowerUp.js
-│   │   ├── Player.js
-│   │   └── Enemy.js
+│   │   ├── Player.js        <-- (unchanged except for HUD hook, if desired)
+│   │   ├── Enemy.js         <-- updated enemy AI
+│   │   └── CurseManager.js  <-- new file for curse logic
 │   └── scenes/
-│       ├── MainScene.js
+│       ├── MainScene.js     <-- updated with audio, split-screen HUD & curse manager
 │       ├── WinScene.js
 │       └── HelpScene.js
 ├── assets/
 │   ├── audio/
-│   │   └── bgMusic.mp3
+│   │   ├── bgMusic.mp3
+│   │   └── lightning.mp3
 │   └── images/
 │       └── *(optional placeholder images)*
 ├── README.md

@@ -4,6 +4,7 @@ export default class HelpScene extends Phaser.Scene {
   constructor() { super('HelpScene'); }
   init(data) { this.previousScene = data.previousScene || 'MainScene'; }
   create() {
+    // A semi-transparent overlay.
     this.add.rectangle(GAME_WIDTH/2, GAME_HEIGHT/2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7);
     let helpText =
 `Keyboard Controls:
@@ -36,6 +37,12 @@ Player 3:
   Spin Melee: Numpad 3
   Projectile Attack: Numpad 5
 
+Game Mechanics:
+  - Each zone in the arena is cursed by a god.
+  - For example, in Zeus' zone there is a chance for lightning strikes (5 damage),
+    while Poseidon's zone slows players.
+  - Use these curses to your advantage and avoid their drawbacks.
+  
 Additional:
   Press "?" to toggle this help screen.`;
     this.add.text(50, 50, helpText, { fontSize: '20px', fill: '#fff', wordWrap: { width: GAME_WIDTH - 100 } });
