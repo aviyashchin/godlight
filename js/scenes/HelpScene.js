@@ -1,4 +1,4 @@
-import Phaser from 'https://unpkg.com/phaser@3.55.2/dist/phaser.module.js';
+import Phaser from 'https://unpkg.com/phaser@3.55.2/src/phaser.module.js';
 import { GAME_WIDTH, GAME_HEIGHT } from '../helpers.js';
 
 export default class HelpScene extends Phaser.Scene {
