@@ -10,26 +10,26 @@ GodLight is a competitive multiplayer brawler featuring the gods of Mount Olympu
 
 ## Features
 * 13 playable gods from Greek mythology
-* Unique passive curses for each character
+* Unique passive curses for each area in the stadium
 * Fast-paced competitive gameplay
 * No "good" abilities - only interesting drawbacks to master
-
+* local multiplayer with split-screen
 ## Playable Characters
-Each god carries a curse that affects their gameplay:
+Each area in the arena carries a curse that affects their gameplay:
 
-* **Zeus**: Lightning attracts enemy attacks
-* **Poseidon**: Randomly repels allies
-* **Hades**: Slows down with each kill
-* **Athena**: Attacks may heal enemies
-* **Ares**: Self-damage when attacking
-* **Aphrodite**: Healing powers can harm
-* **Apollo**: Accuracy drops with success
-* **Artemis**: Attacks target randomly
-* **Hephaestus**: Weapons may backfire
-* **Hermes**: Random movement changes
-* **Dionysus**: Screen spins with kills
-* **Demeter**: Slows nearby allies
-* **Hera**: Drains ally resources
+* **Zeus**: Lightning randomly strikes (5 damage)
+* **Poseidon**: whirpools spawn  randomly and trap whoever is in them when they spawn
+* **Hades**: skellatal wariors spawn and attack whatever is near them (3 melee damage 1 ranged damage cannot leave hades area)
+* **Athena**: Attacks have a 10 percent chance to heal enemmeis (as much health as damage)
+* **Ares**: 10 less shield 
+* **Aphrodite**: evry one in the aprodite area is drawn to each other (just enough to make them slower if they  try to run away)
+* **Apollo**: your side of the screen turns really bright
+* **Artemis**: moonbeams randomly apear silver arrows rain down from them (1 arrow 3 dammage)
+* **Hephaestus**: your regullar attack does 5 less damage
+* **Hermes**: harder to turn ( you can still turn it is just harder)
+* **Dionysus**: Screen spins slowly
+* **Demeter**: flowers grab and slow everyone
+* **Hera**: you slowly loose buffs
 
 ## How to Play
 1. Visit [godlight.vercel.app](https://godlight.vercel.app/)
