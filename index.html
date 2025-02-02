@@ -447,80 +447,76 @@ class Enemy {
     // Display enemy name (e.g., "E0: Zeus").
     this.nameText = scene.add.text(x - 10, y - 30, "E" + index + ": " + this.god, { fontSize: '12px', fill: '#fff' });
     this.healthBar = scene.add.graphics();
-    this.lastFacing = { x: 1, y: 0 }; // Add this line
+    this.lastFacing = { x: 1, y: 0 };
   }
   
   update(time, delta) {
     const deltaTime = delta / 1000;
     this.stateTime += delta;
+
+    // Handle bullet reloading
     if (time - this.lastReloadTime > this.reloadRate && this.currentBullets < this.maxBullets) {
       this.currentBullets++;
       this.lastReloadTime = time;
     }
-    if (nearest) {
-      let dx = nearest.sprite.x - this.sprite.x;
-      let dy = nearest.sprite.y - this.sprite.y;
-      let mag = Math.sqrt(dx*dx + dy*dy);
-      // Update lastFacing when moving
-      if (mag > 0) {
-        this.lastFacing = { 
-          x: dx / mag,
-          y: dy / mag
-        };
-      }
-    // Simplified AI:
+    
+    // Movement and targeting logic
     if (this.homeZone && !this.homeZone.contains(this.sprite.x, this.sprite.y)) {
-      // Move toward the center of the home zone.
+      // Return to home zone if outside it
       let dx = this.homeZone.centerX - this.sprite.x;
       let dy = this.homeZone.centerY - this.sprite.y;
       let mag = Math.sqrt(dx*dx + dy*dy);
       if (mag > 0) {
-        this.sprite.x += (dx / mag) * this.speed * deltaTime;
-        this.sprite.y += (dy / mag) * this.speed * deltaTime;
+        this.lastFacing = { x: dx/mag, y: dy/mag };
+        this.sprite.x += this.lastFacing.x * this.speed * deltaTime;
+        this.sprite.y += this.lastFacing.y * this.speed * deltaTime;
       }
     } else {
-      // Otherwise, chase the nearest target (player or enemy, excluding self).
+      // Find and chase nearest target
       let nearest = null, minDist = Infinity;
       let allTargets = this.scene.players.concat(this.scene.enemies.filter(e => e !== this));
+      
       allTargets.forEach(target => {
         let dx = target.sprite.x - this.sprite.x;
         let dy = target.sprite.y - this.sprite.y;
         let dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < minDist) { minDist = dist; nearest = target; }
+        if (dist < minDist) { 
+          minDist = dist; 
+          nearest = target; 
+        }
       });
+
       if (nearest) {
         let dx = nearest.sprite.x - this.sprite.x;
         let dy = nearest.sprite.y - this.sprite.y;
         let mag = Math.sqrt(dx*dx + dy*dy);
-        this.sprite.x += (dx / mag) * this.speed * deltaTime;
-        this.sprite.y += (dy / mag) * this.speed * deltaTime;
-        if (minDist < 300 && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
-          this.currentBullets--;
-          let dirX = dx / mag, dirY = dy / mag;
-          this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, dirX, dirY);
-          this.lastAttackTime = time;
+        
+        if (mag > 0) {
+          this.lastFacing = { x: dx/mag, y: dy/mag };
+          this.sprite.x += this.lastFacing.x * this.speed * deltaTime;
+          this.sprite.y += this.lastFacing.y * this.speed * deltaTime;
+          
+          // Attack if in range
+          if (minDist < 300 && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
+            this.currentBullets--;
+            this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, dx/mag, dy/mag);
+            this.lastAttackTime = time;
+          }
         }
       }
     }
     
+    // Update UI elements
     this.updateHealthBar();
     this.nameText.setPosition(this.sprite.x - 10, this.sprite.y - 30);
+    
+    // Handle death
     if (this.health <= 0) {
       this.sprite.destroy();
       this.nameText.destroy();
       this.healthBar.destroy();
       this.scene.enemies = this.scene.enemies.filter(e => e !== this);
     }
-  }
-  
-  updateHealthBar() {
-    this.healthBar.clear();
-    const barWidth = 30, barHeight = 5;
-    let healthPercent = Phaser.Math.Clamp(this.health / this.maxHealth, 0, 1);
-    this.healthBar.fillStyle(0xff0000);
-    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 40, barWidth, barHeight);
-    this.healthBar.fillStyle(0x00ff00);
-    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 40, barWidth * healthPercent, barHeight);
   }
 }
 
@@ -707,23 +703,28 @@ class MainScene extends Phaser.Scene {
   }
   
   spawnProjectileAttack(x, y, shooter, dirX, dirY) {
-    let speed = 500;
-    // Normalize direction
-    let mag = Math.sqrt(dirX * dirX + dirY * dirY);
-    if (mag === 0) {
-      // Use shooter's lastFacing as fallback
-      dirX = shooter.lastFacing.x;
-      dirY = shooter.lastFacing.y;
-    } else {
-      dirX /= mag;
-      dirY /= mag;
-    }
-    let velX = dirX * speed;
-    let velY = dirY * speed;
-    let damage = shooter.damage * 1.2;
-    let projectile = new ProjectileAttack(this, x, y, "projectile", dirX, dirY, damage, shooter);
-    this.projectiles.push(projectile);
+  let speed = 500;
+  
+  // Normalize direction
+  let mag = Math.sqrt(dirX * dirX + dirY * dirY);
+  if (mag === 0) {
+    dirX = shooter.lastFacing.x;
+    dirY = shooter.lastFacing.y;
+  } else {
+    dirX /= mag;
+    dirY /= mag;
   }
+  
+  // Calculate velocity
+  let velX = dirX * speed;
+  let velY = dirY * speed;
+  let damage = shooter.damage * 1.2;
+  
+  // Create projectile with normalized direction for offset calculation
+  let projectile = new ProjectileAttack(this, x, y, "projectile", velX, velY, damage, shooter);
+  this.projectiles.push(projectile);
+}
+
   
   updateProjectileAttacks(delta) {
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
