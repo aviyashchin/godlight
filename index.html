@@ -19,20 +19,20 @@
       cursor: pointer;
       z-index: 1000;
     }
-    /* HUD tooltip (stub) */
+    /* HUD tooltip */
     #hudTooltip {
       position: absolute;
-      padding: 5px 10px;
-      background: rgba(0,0,0,0.8);
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.8);
       color: #fff;
       font-size: 14px;
       display: none;
-      z-index: 1000;
+      z-index: 1001;
     }
   </style>
-  <!-- Load EasyStar.js (stub for A* pathfinding) -->
+  <!-- EasyStar.js for pathfinding -->
   <script src="https://cdn.jsdelivr.net/npm/easystarjs@0.4.4/bin/easystar-0.4.4.js"></script>
-  <!-- Include Phaser.js from CDN -->
+  <!-- Phaser.js -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
 </head>
 <body>
@@ -60,41 +60,21 @@ function darkenColor(color, percent) {
 
 // --- Mapping for boon icons and texts ---
 const GOD_ICONS = {
-  Zeus: "⚡",
-  Poseidon: "🌊",
-  Athena: "🦉",
-  Ares: "⚔️",
-  Aphrodite: "💖",
-  Apollo: "☀️",
-  Artemis: "🌙",
-  Hephaestus: "🔥",
-  Hermes: "👟",
-  Dionysus: "🍷",
-  Demeter: "🌾",
-  Hera: "👑",
-  Hades: "💀"
+  Zeus: "⚡", Poseidon: "🌊", Athena: "🦉", Ares: "⚔️",
+  Aphrodite: "💖", Apollo: "☀️", Artemis: "🌙", Hephaestus: "🔥",
+  Hermes: "👟", Dionysus: "🍷", Demeter: "🌾", Hera: "👑", Hades: "💀"
 };
 const GOD_BOONS = {
-  Zeus: "+25% DMG",
-  Poseidon: "Push Allies",
-  Athena: "30% Heal Chance",
-  Ares: "Reflect 15%",
-  Aphrodite: "Healing Mishap",
-  Apollo: "-5% Accu",
-  Artemis: "Random Target",
-  Hephaestus: "20% Backfire",
-  Hermes: "Chaotic Move",
-  Dionysus: "Screen Spin",
-  Demeter: "Slow Allies",
-  Hera: "Tax Allies",
-  Hades: "Soul Burden"
+  Zeus: "+25% DMG", Poseidon: "Push Allies", Athena: "30% Heal Chance",
+  Ares: "Reflect 15%", Aphrodite: "Healing Mishap", Apollo: "-5% Accu",
+  Artemis: "Random Target", Hephaestus: "20% Backfire", Hermes: "Chaotic Move",
+  Dionysus: "Screen Spin", Demeter: "Slow Allies", Hera: "Tax Allies", Hades: "Soul Burden"
 };
 
 // --- Global Configuration ---
-const GAME_WIDTH = 1536;
-const GAME_HEIGHT = 1152;
-const ARENA_CENTER = { x: GAME_WIDTH / 2, y: GAME_HEIGHT / 2 };
-const ARENA_RADIUS = Math.min(GAME_WIDTH, GAME_HEIGHT) / 2 - 20;
+const GAME_WIDTH = 1536, GAME_HEIGHT = 1152;
+const ARENA_CENTER = { x: GAME_WIDTH/2, y: GAME_HEIGHT/2 };
+const ARENA_RADIUS = Math.min(GAME_WIDTH, GAME_HEIGHT)/2 - 20;
 
 const GODS = [
   { name: "Zeus",      boon: "Lightning Rod – +25% DMG" },
@@ -110,7 +90,7 @@ const GODS = [
   { name: "Demeter",   boon: "Withering Touch" },
   { name: "Hera",      boon: "Royal Tax" },
   { name: "Hades",     boon: "Soul Burden" }
-];
+]
 
 const GOD_CONFIG = {
   Zeus:      { health: 150, damage: 20, shield: 40, bullets: 12, bulletReload: 900, shieldReload: 4500, zoneColor: 0xffd700 },
@@ -128,17 +108,17 @@ const GOD_CONFIG = {
   Hades:     { health: 160, damage: 24, shield: 35, bullets: 10, bulletReload: 1000, shieldReload: 5000, zoneColor: 0x8b008b }
 };
 
-// We'll generate dynamic textures for combatants.
-// For non-Hades, a polygon texture; for Hades, a circular texture.
+// --- Generate dynamic textures for combatants ---
+// For non-Hades, we generate a polygon texture; for Hades, a circle.
 const GOD_SPRITES = {}; // Filled in preload.
 
-// Helper: create a polygon texture.
+// Helper: create polygon texture.
 function createPolygonTexture(scene, key, sides, radius, color) {
   let graphics = scene.make.graphics({ x: 0, y: 0, add: false });
   let angleStep = (2 * Math.PI) / sides;
   let points = [];
   for (let i = 0; i < sides; i++) {
-    let angle = i * angleStep - Math.PI/2; // Start upward.
+    let angle = i * angleStep - Math.PI/2;
     let x = radius * Math.cos(angle) + radius;
     let y = radius * Math.sin(angle) + radius;
     points.push(new Phaser.Geom.Point(x, y));
@@ -151,27 +131,25 @@ function createPolygonTexture(scene, key, sides, radius, color) {
   }
   graphics.closePath();
   graphics.fillPath();
-  graphics.generateTexture(key, radius * 2, radius * 2);
+  graphics.generateTexture(key, radius*2, radius*2);
   graphics.destroy();
 }
 
-// Helper: create a circular texture.
+// Helper: create circular texture.
 function createCircleTexture(scene, key, radius, color) {
   let graphics = scene.make.graphics({ x: 0, y: 0, add: false });
   graphics.fillStyle(color, 1);
   graphics.fillCircle(radius, radius, radius);
-  graphics.generateTexture(key, radius * 2, radius * 2);
+  graphics.generateTexture(key, radius*2, radius*2);
   graphics.destroy();
 }
 
-// --- Constants for input ---
+// --- Input Constants ---
 const BUTTONS = { A: 0, B: 1, X: 2, Y: 3 };
 const PLAYER_SPEED = 100;
 const ENEMY_SPEED = 50;
 
-/* ======================================================================
-   Object Pool (Simple Stub)
-   ====================================================================== */
+// --- Object Pool (stub) ---
 class Pool {
   constructor(createFn) {
     this.createFn = createFn;
@@ -185,24 +163,28 @@ class Pool {
   }
 }
 
-/* ======================================================================
-   EasyStar Setup (Stub)
-   ====================================================================== */
+// --- EasyStar Setup with obstacles ---
+// Here we build a simple grid with some obstacles.
 const easyStar = new EasyStar.js();
 const gridCols = 48, gridRows = 36;
 const grid = [];
 for (let y = 0; y < gridRows; y++) {
   const col = [];
-  for (let x = 0; x < gridCols; x++) { col.push(0); }
+  for (let x = 0; x < gridCols; x++) {
+    // Let's create some obstacles: e.g., cells where x is between 20-25 and y is between 10-30.
+    if (x >= 20 && x <= 25 && y >= 10 && y <= 30) {
+      col.push(1); // non-walkable.
+    } else {
+      col.push(0);
+    }
+  }
   grid.push(col);
 }
 easyStar.setGrid(grid);
 easyStar.setAcceptableTiles([0]);
-// TODO: Add obstacles and use easyStar.findPath() in enemy AI
+// Note: In a real game, you would update the grid to reflect your level obstacles and call easyStar.findPath().
 
-/* ======================================================================
-   ProjectileAttack Class (For Long-Range Attacks)
-   ====================================================================== */
+// --- ProjectileAttack Class ---
 class ProjectileAttack {
   constructor(scene, x, y, texture, velX, velY, damage, owner) {
     this.scene = scene;
@@ -237,9 +219,7 @@ class ProjectileAttack {
   }
 }
 
-/* ======================================================================
-   PieZone Class (For Circular Arena Slices with Gradients)
-   ====================================================================== */
+// --- PieZone Class with Gradient ---
 class PieZone {
   constructor(scene, centerX, centerY, radius, startAngle, endAngle, god, zoneColor) {
     this.scene = scene;
@@ -250,21 +230,19 @@ class PieZone {
     this.endAngle = endAngle;
     this.god = god;
     this.zoneColor = zoneColor;
-    this.defaultColor = 0x222222; // Darker default background.
+    this.defaultColor = 0x111111;
     this.graphics = scene.add.graphics();
     this.text = scene.add.text(0, 0, god, { fontFamily: 'monospace', fontSize: '14px', fill: '#fff' });
     this.updateDisplay([]);
   }
   contains(x, y) {
-    let dx = x - this.centerX;
-    let dy = y - this.centerY;
-    let dist = Math.sqrt(dx * dx + dy * dy);
+    let dx = x - this.centerX, dy = y - this.centerY;
+    let dist = Math.sqrt(dx*dx+dy*dy);
     if (dist > this.radius) return false;
     let angle = Math.atan2(dy, dx);
-    if (angle < 0) angle += 2 * Math.PI;
-    return (this.startAngle > this.endAngle)
-      ? (angle >= this.startAngle || angle < this.endAngle)
-      : (angle >= this.startAngle && angle < this.endAngle);
+    if (angle < 0) angle += 2*Math.PI;
+    return (this.startAngle > this.endAngle) ? (angle >= this.startAngle || angle < this.endAngle)
+                                             : (angle >= this.startAngle && angle < this.endAngle);
   }
   updateDisplay(players) {
     this.graphics.clear();
@@ -285,18 +263,13 @@ class PieZone {
     let labelRadius = this.radius * 0.5;
     let tx = this.centerX + labelRadius * Math.cos(midAngle) - 20;
     let ty = this.centerY + labelRadius * Math.sin(midAngle) - 10;
-    if (active) {
-      this.text.setText(this.god + "\n" + GOD_ICONS[this.god] + " " + GOD_BOONS[this.god]);
-    } else {
-      this.text.setText(this.god);
-    }
+    this.text.setText(active ? (this.god + "\n" + GOD_ICONS[this.god] + " " + GOD_BOONS[this.god])
+                              : this.god);
     this.text.setPosition(tx, ty);
   }
 }
 
-/* ======================================================================
-   MeleeAttack Class (Temporary Hitbox for Melee Attacks)
-   ====================================================================== */
+// --- MeleeAttack Class ---
 class MeleeAttack {
   constructor(scene, x, y, width, height, rotation, damage, owner) {
     this.scene = scene;
@@ -305,7 +278,22 @@ class MeleeAttack {
     this.damage = damage;
     this.owner = owner;
     this.lifetime = 200;
-    // TODO: Add particle effects.
+    // Trigger a particle burst on creation.
+    this.emitParticles();
+  }
+  emitParticles() {
+    let particles = this.scene.add.particles('projectile');
+    particles.createEmitter({
+      x: this.hitbox.x,
+      y: this.hitbox.y,
+      speed: { min: -50, max: 50 },
+      scale: { start: 0.5, end: 0 },
+      lifespan: 300,
+      blendMode: 'ADD',
+      quantity: 10
+    });
+    // Destroy emitter after a short time.
+    this.scene.time.delayedCall(300, () => { particles.destroy(); });
   }
   update(delta) {
     this.lifetime -= delta;
@@ -323,17 +311,15 @@ class MeleeAttack {
   }
 }
 
-/* ======================================================================
-   PowerUp Class (Temporary Boosts)
-   ====================================================================== */
+// --- PowerUp Class with Multiple Types ---
 class PowerUp {
   constructor(scene, x, y, type) {
     this.scene = scene;
-    this.type = type;
+    this.type = type; // "shield" or "extraSpeed"
     this.sprite = scene.add.sprite(x, y, "projectile");
     this.sprite.setScale(0.5);
     this.lifetime = 10000;
-    this.label = scene.add.text(x, y - 20, "Shield +20", { fontSize: '12px', fill: '#fff' });
+    this.label = scene.add.text(x, y - 20, (type === "shield" ? "Shield +20" : "Speed +50"), { fontSize: '12px', fill: '#fff' });
   }
   update(delta) {
     this.lifetime -= delta;
@@ -353,9 +339,7 @@ class PowerUp {
   }
 }
 
-/* ======================================================================
-   Player Class Definition
-   ====================================================================== */
+// --- Player Class ---
 class Player {
   constructor(scene, x, y, playerIndex, shapeSides) {
     this.scene = scene;
@@ -374,14 +358,12 @@ class Player {
     this.lastReloadTime = 0;
     this.lastShieldReloadTime = 0;
     this.speed = PLAYER_SPEED;
-    // Use a polygon texture for non-Hades; for Hades, use a circle.
     if (this.god === "Hades") {
       this.sprite = scene.add.sprite(x, y, "circle_hades");
     } else {
       this.sprite = scene.add.sprite(x, y, "poly_" + shapeSides);
     }
     this.sprite.setScale(0.5);
-    // Tint the sprite with its god's zone color.
     this.sprite.setTint(GOD_CONFIG[this.god].zoneColor);
     this.nameText = scene.add.text(x - 20, y - 70, "P" + playerIndex + ": " + this.god, { fontSize: '12px', fill: '#fff' });
     this.bulletText = scene.add.text(x - 20, y - 55, "Ammo: " + this.currentBullets, { fontSize: '12px', fill: '#fff' });
@@ -462,13 +444,12 @@ class Player {
       else if (this.keys.down.isDown) { vy = this.speed; }
       if (this.keys.sprint.isDown) { vx *= 1.5; vy *= 1.5; }
       if (vx !== 0 || vy !== 0) {
-        let mag = Math.sqrt(vx * vx + vy * vy);
-        this.lastFacing.x = vx / mag;
-        this.lastFacing.y = vy / mag;
+        let mag = Math.sqrt(vx*vx + vy*vy);
+        this.lastFacing.x = vx/mag;
+        this.lastFacing.y = vy/mag;
       }
       this.sprite.x += vx * deltaTime;
       this.sprite.y += vy * deltaTime;
-      
       if (this.keys.melee1.isDown && (currentTime - this.lastAttackTime > this.attackCooldown) && this.currentBullets > 0) {
         this.meleeAttackRegular();
         this.lastAttackTime = currentTime;
@@ -488,13 +469,12 @@ class Player {
       let vy = axisV * this.speed;
       if (this.gamepad.buttons[BUTTONS.A].pressed) { vx *= 1.5; vy *= 1.5; }
       if (Math.abs(axisH) > 0.1 || Math.abs(axisV) > 0.1) {
-        let mag = Math.sqrt(axisH*axisH+axisV*axisV);
+        let mag = Math.sqrt(axisH*axisH + axisV*axisV);
         this.lastFacing.x = axisH/mag;
         this.lastFacing.y = axisV/mag;
       }
       this.sprite.x += vx * deltaTime;
       this.sprite.y += vy * deltaTime;
-      
       if (currentTime - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
         if (this.gamepad.buttons[BUTTONS.B].pressed) {
           this.meleeAttackRegular();
@@ -508,8 +488,7 @@ class Player {
         }
       }
     }
-    
-    // Clamp position within the arena.
+    // Clamp within arena.
     let dx = this.sprite.x - ARENA_CENTER.x;
     let dy = this.sprite.y - ARENA_CENTER.y;
     let dist = Math.sqrt(dx*dx + dy*dy);
@@ -517,35 +496,30 @@ class Player {
       this.sprite.x = ARENA_CENTER.x + (dx/dist) * ARENA_RADIUS;
       this.sprite.y = ARENA_CENTER.y + (dy/dist) * ARENA_RADIUS;
     }
-    
     this.sprite.rotation = Math.atan2(this.lastFacing.y, this.lastFacing.x) + Math.PI/2;
     this.nameText.setText("P" + this.playerIndex + ": " + this.god);
     this.nameText.setPosition(this.sprite.x - 20, this.sprite.y - 70);
     this.updateHealthBar();
   }
-  
   meleeAttackRegular() {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
     this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "regular", this);
   }
-  
   meleeAttackSpin() {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
     this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "spin", this);
   }
-  
   projectileAttack() {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
     this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, this.lastFacing.x, this.lastFacing.y);
   }
-  
   updateHealthBar() {
     this.healthBar.clear();
     const barWidth = 40, barHeight = 6;
-    let healthPercent = Phaser.Math.Clamp(this.health / this.maxHealth, 0, 1);
+    let healthPercent = Phaser.Math.Clamp(this.health/this.maxHealth, 0, 1);
     this.healthBar.fillStyle(0xff0000);
     this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 80, barWidth, barHeight);
     this.healthBar.fillStyle(0x00ff00);
@@ -555,7 +529,6 @@ class Player {
       this.healthBar.strokeCircle(this.sprite.x, this.sprite.y, 30);
     }
   }
-  
   destroy() {
     this.sprite.destroy();
     this.nameText.destroy();
@@ -564,9 +537,7 @@ class Player {
   }
 }
 
-/* ======================================================================
-   Enemy Class Definition
-   ====================================================================== */
+// --- Enemy Class ---
 class Enemy {
   constructor(scene, x, y, enemyIndex, shapeSides) {
     this.scene = scene;
@@ -611,7 +582,34 @@ class Enemy {
       this.lastReloadTime = time;
     }
     
-    // Find nearest target (players or other enemies).
+    // Use EasyStar for pathfinding in chase state.
+    let path = null;
+    if (this.state === "chase") {
+      // Find nearest target among players and enemies.
+      let nearest = null, minDist = Infinity;
+      let allTargets = this.scene.players.concat(this.scene.enemies.filter(e => e !== this));
+      for (let target of allTargets) {
+        let dx = target.sprite.x - this.sprite.x;
+        let dy = target.sprite.y - this.sprite.y;
+        let dist = Math.sqrt(dx*dx+dy*dy);
+        if (dist < minDist) { minDist = dist; nearest = target; }
+      }
+      if (nearest) {
+        // Convert positions to grid indices.
+        let startX = Math.floor(this.sprite.x / 32);
+        let startY = Math.floor(this.sprite.y / 32);
+        let endX = Math.floor(nearest.sprite.x / 32);
+        let endY = Math.floor(nearest.sprite.y / 32);
+        easyStar.findPath(startX, startY, endX, endY, (foundPath) => {
+          if (foundPath !== null && foundPath.length > 1) {
+            path = foundPath;
+          }
+        });
+        easyStar.calculate();
+      }
+    }
+    
+    // Determine state.
     let nearest = null, minDist = Infinity;
     let allTargets = this.scene.players.concat(this.scene.enemies.filter(e => e !== this));
     for (let target of allTargets) {
@@ -620,7 +618,6 @@ class Enemy {
       let dist = Math.sqrt(dx*dx+dy*dy);
       if (dist < minDist) { minDist = dist; nearest = target; }
     }
-    
     if (this.health < this.maxHealth * 0.3) {
       this.state = "retreat";
     } else if (this.scene.meleeAttacks.some(a => Phaser.Geom.Intersects.RectangleToRectangle(a.getBounds(), this.sprite.getBounds()))) {
@@ -633,6 +630,7 @@ class Enemy {
       this.state = "patrol";
     }
     
+    // Act based on state.
     if (this.state === "home" && this.homeZone) {
       let dx = this.homeZone.centerX - this.sprite.x;
       let dy = this.homeZone.centerY - this.sprite.y;
@@ -648,16 +646,33 @@ class Enemy {
       }
       this.sprite.x += this.patrolDirection.x * this.speed * deltaTime;
       this.sprite.y += this.patrolDirection.y * this.speed * deltaTime;
-    } else if (this.state === "chase" && nearest) {
-      let dx = nearest.sprite.x - this.sprite.x;
-      let dy = nearest.sprite.y - this.sprite.y;
-      let mag = Math.sqrt(dx*dx+dy*dy);
-      if (mag > 0) {
-        this.sprite.x += (dx/mag) * this.speed * deltaTime;
-        this.sprite.y += (dy/mag) * this.speed * deltaTime;
+    } else if (this.state === "chase") {
+      if (path && path.length > 1) {
+        // Follow the first step of the path.
+        let nextStep = path[1];
+        let targetX = nextStep.x * 32 + 16;
+        let targetY = nextStep.y * 32 + 16;
+        let dx = targetX - this.sprite.x;
+        let dy = targetY - this.sprite.y;
+        let mag = Math.sqrt(dx*dx+dy*dy);
+        if (mag > 0) {
+          this.sprite.x += (dx/mag) * this.speed * deltaTime;
+          this.sprite.y += (dy/mag) * this.speed * deltaTime;
+        }
+      } else if (nearest) {
+        let dx = nearest.sprite.x - this.sprite.x;
+        let dy = nearest.sprite.y - this.sprite.y;
+        let mag = Math.sqrt(dx*dx+dy*dy);
+        if (mag > 0) {
+          this.sprite.x += (dx/mag) * this.speed * deltaTime;
+          this.sprite.y += (dy/mag) * this.speed * deltaTime;
+        }
       }
       if (minDist < 300 && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
         this.currentBullets--;
+        let dx = nearest.sprite.x - this.sprite.x;
+        let dy = nearest.sprite.y - this.sprite.y;
+        let mag = Math.sqrt(dx*dx+dy*dy);
         let dirX = dx/mag, dirY = dy/mag;
         this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, dirX, dirY);
         this.lastAttackTime = time;
@@ -677,12 +692,12 @@ class Enemy {
     }
     
     // Clamp within arena.
-    let dx = this.sprite.x - ARENA_CENTER.x;
-    let dy = this.sprite.y - ARENA_CENTER.y;
-    let dist = Math.sqrt(dx*dx+dy*dy);
-    if (dist > ARENA_RADIUS) {
-      this.sprite.x = ARENA_CENTER.x + (dx/dist) * ARENA_RADIUS;
-      this.sprite.y = ARENA_CENTER.y + (dy/dist) * ARENA_RADIUS;
+    let dxClamp = this.sprite.x - ARENA_CENTER.x;
+    let dyClamp = this.sprite.y - ARENA_CENTER.y;
+    let distClamp = Math.sqrt(dxClamp*dxClamp+dyClamp*dyClamp);
+    if (distClamp > ARENA_RADIUS) {
+      this.sprite.x = ARENA_CENTER.x + (dxClamp/distClamp) * ARENA_RADIUS;
+      this.sprite.y = ARENA_CENTER.y + (dyClamp/distClamp) * ARENA_RADIUS;
     }
     
     this.updateHealthBar();
@@ -698,11 +713,15 @@ class Enemy {
   updateHealthBar() {
     this.healthBar.clear();
     const barWidth = 30, barHeight = 5;
-    let healthPercent = Phaser.Math.Clamp(this.health / this.maxHealth, 0, 1);
+    let healthPercent = Phaser.Math.Clamp(this.health/this.maxHealth, 0, 1);
     this.healthBar.fillStyle(0xff0000);
     this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 40, barWidth, barHeight);
     this.healthBar.fillStyle(0x00ff00);
     this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 40, barWidth * healthPercent, barHeight);
+    if (this.shield > 0) {
+      this.healthBar.lineStyle(4, 0x0000ff, 1);
+      this.healthBar.strokeCircle(this.sprite.x, this.sprite.y, 30);
+    }
   }
   
   destroy() {
@@ -713,19 +732,16 @@ class Enemy {
   }
 }
 
-/* ======================================================================
-   Main Scene (Game World)
-   ====================================================================== */
+// --- Main Scene ---
 class MainScene extends Phaser.Scene {
   constructor() {
     super('MainScene');
   }
   
   preload() {
-    // Generate polygon textures for non-Hades (sides 3 to 14).
+    // Generate polygon textures for non-Hades (3 to 14 sides).
     for (let sides = 3; sides <= 14; sides++) {
       let key = "poly_" + sides;
-      // Base texture in white; tint will be applied later.
       createPolygonTexture(this, key, sides, 32, 0xffffff);
     }
     // Generate a circular texture for Hades.
@@ -736,13 +752,21 @@ class MainScene extends Phaser.Scene {
     projGraphics.fillRect(0, 0, 16, 16);
     projGraphics.generateTexture("projectile", 16, 16);
     projGraphics.destroy();
+    
+    // (In production, load polished assets and animations from asset packs.)
+    
+    // Optionally load audio assets:
+    // this.load.audio('bgMusic', 'assets/bg_music.mp3');
   }
   
   create() {
-    // Set a much darker background.
     this.cameras.main.setBackgroundColor(0x111111);
-    this.arenaCenter = ARENA_CENTER;
-    this.arenaRadius = ARENA_RADIUS;
+    ARENA_CENTER.x = GAME_WIDTH / 2;
+    ARENA_CENTER.y = GAME_HEIGHT / 2;
+    
+    // Start background music (if loaded).
+    // let music = this.sound.add('bgMusic');
+    // music.play({ loop: true });
     
     // Create the GodLight title (fixed to camera).
     let asciiArt =
@@ -775,11 +799,11 @@ class MainScene extends Phaser.Scene {
     let godsForZones = GODS.filter(g => g.name !== "Hades");
     const numZones = godsForZones.length;
     for (let i = 0; i < numZones; i++) {
-      let startAngle = i * (2 * Math.PI / numZones);
-      let endAngle = (i + 1) * (2 * Math.PI / numZones);
+      let startAngle = i * (2*Math.PI/numZones);
+      let endAngle = (i+1) * (2*Math.PI/numZones);
       let god = godsForZones[i].name;
       let zoneColor = GOD_CONFIG[god] ? GOD_CONFIG[god].zoneColor : 0xffffff;
-      let zone = new PieZone(this, centerX, centerY, this.arenaRadius, startAngle, endAngle, god, zoneColor);
+      let zone = new PieZone(this, centerX, centerY, ARENA_RADIUS, startAngle, endAngle, god, zoneColor);
       this.pieZones.push(zone);
     }
     
@@ -788,8 +812,7 @@ class MainScene extends Phaser.Scene {
     this.projectiles = [];
     this.powerUps = [];
     
-    // Spawn exactly 13 combatants (one per god).
-    // First 4 gods are player-controlled; the rest are AI.
+    // Spawn 13 combatants (one per god).
     this.players = [];
     this.enemies = [];
     let nonHadesIndex = 0;
@@ -797,7 +820,7 @@ class MainScene extends Phaser.Scene {
       let godName = GODS[i].name;
       let spawnX, spawnY;
       if (godName === "Hades") {
-        let angle = Phaser.Math.FloatBetween(0, 2 * Math.PI);
+        let angle = Phaser.Math.FloatBetween(0, 2*Math.PI);
         let r = Phaser.Math.FloatBetween(0, 75);
         spawnX = ARENA_CENTER.x + r * Math.cos(angle);
         spawnY = ARENA_CENTER.y + r * Math.sin(angle);
@@ -858,12 +881,13 @@ class MainScene extends Phaser.Scene {
     this.time.addEvent({
       delay: 15000,
       callback: () => {
-        // Generate random angle and radius within the arena.
         let angle = Phaser.Math.FloatBetween(0, 2*Math.PI);
-        let r = Math.sqrt(Math.random()) * this.arenaRadius;
+        let r = Math.sqrt(Math.random()) * ARENA_RADIUS;
         let puX = ARENA_CENTER.x + r * Math.cos(angle);
         let puY = ARENA_CENTER.y + r * Math.sin(angle);
-        let powerUp = new PowerUp(this, puX, puY, "shield");
+        // Alternate power-up types.
+        let type = (Math.random() < 0.5) ? "shield" : "extraSpeed";
+        let powerUp = new PowerUp(this, puX, puY, type);
         this.powerUps.push(powerUp);
       },
       loop: true
@@ -904,18 +928,17 @@ class MainScene extends Phaser.Scene {
         }
       });
     });
+    
+    // Create a minimap camera in the upper-left corner.
+    this.minimap = this.cameras.add(10, 10, 200, 150).setZoom(200/GAME_WIDTH).setBackgroundColor(0x111111);
   }
   
   spawnMeleeAttack(x, y, attackType, shooter) {
     let offset = 0, width = 0, height = 0, damageMultiplier = 1;
     if (attackType === "regular") {
-      offset = 20;
-      width = 30; height = 20;
-      damageMultiplier = 1;
+      offset = 20; width = 30; height = 20; damageMultiplier = 1;
     } else if (attackType === "spin") {
-      offset = 0;
-      width = 50; height = 50;
-      damageMultiplier = 0.7;
+      offset = 0; width = 50; height = 50; damageMultiplier = 0.7;
     }
     let attackX = x, attackY = y;
     if (offset > 0) {
@@ -929,16 +952,14 @@ class MainScene extends Phaser.Scene {
   spawnMeleeAttackHitbox(x, y, width, height, rotation, damage, shooter) {
     let melee = new MeleeAttack(this, x, y, width, height, rotation, damage, shooter);
     this.meleeAttacks.push(melee);
-    // TODO: Add particle effects.
   }
   
   spawnProjectileAttack(x, y, shooter, dirX, dirY) {
     let speed = 500;
-    let mag = Math.sqrt(dirX * dirX + dirY * dirY);
+    let mag = Math.sqrt(dirX*dirX + dirY*dirY);
     if (mag === 0) { dirX = shooter.lastFacing.x; dirY = shooter.lastFacing.y; }
     else { dirX /= mag; dirY /= mag; }
-    let velX = dirX * speed;
-    let velY = dirY * speed;
+    let velX = dirX * speed, velY = dirY * speed;
     let damage = shooter.damage * 1.2;
     let projectile = new ProjectileAttack(this, x, y, "projectile", velX, velY, damage, shooter);
     this.projectiles.push(projectile);
@@ -981,7 +1002,14 @@ class MainScene extends Phaser.Scene {
       } else {
         this.players.forEach(player => {
           if (Phaser.Geom.Intersects.RectangleToRectangle(pu.getBounds(), player.sprite.getBounds())) {
-            player.shield += 20;
+            // Apply power-up effect based on type.
+            if (pu.type === "shield") {
+              player.shield += 20;
+            } else if (pu.type === "extraSpeed") {
+              // Temporarily boost speed.
+              player.speed = PLAYER_SPEED * 1.5;
+              this.time.delayedCall(5000, () => { player.speed = PLAYER_SPEED; });
+            }
             pu.destroy();
             this.powerUps.splice(i, 1);
           }
@@ -991,11 +1019,9 @@ class MainScene extends Phaser.Scene {
   }
   
   update(time, delta) {
-    // Update pie zones with current player positions.
     this.pieZones.forEach(zone => zone.updateDisplay(this.players));
     this.hadesCircle.setPosition(ARENA_CENTER.x, ARENA_CENTER.y);
     
-    // Update melee attacks (apply damage to all overlapping targets).
     for (let i = this.meleeAttacks.length - 1; i >= 0; i--) {
       let attack = this.meleeAttacks[i];
       if (!attack.update(delta)) {
@@ -1010,9 +1036,7 @@ class MainScene extends Phaser.Scene {
             if (target.shield > 0) {
               let remainder = dmg - target.shield;
               target.shield = Math.max(0, target.shield - dmg);
-              if (remainder > 0) {
-                target.health = Math.max(0, target.health - remainder);
-              }
+              if (remainder > 0) { target.health = Math.max(0, target.health - remainder); }
             } else {
               target.health = Math.max(0, target.health - dmg);
             }
@@ -1029,7 +1053,6 @@ class MainScene extends Phaser.Scene {
     this.updateProjectileAttacks(delta);
     this.updatePowerUps(delta);
     
-    // Iterate backward over players.
     for (let i = this.players.length - 1; i >= 0; i--) {
       let player = this.players[i];
       player.update();
@@ -1038,7 +1061,6 @@ class MainScene extends Phaser.Scene {
         this.players.splice(i, 1);
       }
     }
-    // Iterate backward over enemies.
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       let enemy = this.enemies[i];
       enemy.update(time, delta);
@@ -1050,17 +1072,15 @@ class MainScene extends Phaser.Scene {
       }
     }
     
-    // Update HUD panel.
-    let hudInfo = "Combatants Left:\n";
     let allChars = this.players.concat(this.enemies);
+    let hudInfo = "Combatants Left:\n";
     allChars.forEach((char, idx) => {
       let label = (char.playerIndex !== undefined) ? ("P" + char.playerIndex + ": " + char.god)
-                                                  : ("E" + idx + ": " + char.god);
+                                                   : ("E" + idx + ": " + char.god);
       hudInfo += label + " - HP: " + char.health + " | Shield: " + char.shield + " | Ammo: " + char.currentBullets + "\n";
     });
     this.hudText.setText(hudInfo);
     
-    // Win condition: if only one unique god remains.
     if (allChars.length > 0) {
       let uniqueGods = new Set(allChars.map(ch => ch.god));
       if (uniqueGods.size === 1) {
@@ -1068,63 +1088,29 @@ class MainScene extends Phaser.Scene {
       }
     }
   }
-  
-  createPlaceholderGraphics(key, width, height, color) {
-    let graphics = this.make.graphics({ x: 0, y: 0, add: false });
-    graphics.fillStyle(color, 1);
-    graphics.fillRect(0, 0, width, height);
-    graphics.generateTexture(key, width, height);
-    graphics.destroy();
-  }
-  
-  createTriangleTexture(key, width, height, color) {
-    let graphics = this.make.graphics({ x: 0, y: 0, add: false });
-    graphics.fillStyle(color, 1);
-    graphics.beginPath();
-    graphics.moveTo(width/2, 0);
-    graphics.lineTo(0, height);
-    graphics.lineTo(width, height);
-    graphics.closePath();
-    graphics.fillPath();
-    graphics.generateTexture(key, width, height);
-    graphics.destroy();
-  }
 }
 
-/* ======================================================================
-   Win Scene Definition
-   ====================================================================== */
+/* --- Win Scene --- */
 class WinScene extends Phaser.Scene {
   constructor() {
     super('WinScene');
   }
-  init(data) {
-    this.winningGod = data.god;
-  }
+  init(data) { this.winningGod = data.god; }
   create() {
     this.cameras.main.setBackgroundColor(0x111111);
     this.add.text(GAME_WIDTH/2 - 200, GAME_HEIGHT/2 - 100, "The " + this.winningGod + " has won!", { fontSize: '48px', fill: '#fff' });
     let btn = document.createElement("button");
     btn.id = "restartBtn";
     btn.textContent = "Restart Game";
-    btn.onclick = () => {
-      btn.remove();
-      this.scene.start('MainScene');
-    };
+    btn.onclick = () => { btn.remove(); this.scene.start('MainScene'); };
     document.body.appendChild(btn);
   }
 }
 
-/* ======================================================================
-   Help Scene Definition (Toggle with "?")
-   ====================================================================== */
+/* --- Help Scene --- */
 class HelpScene extends Phaser.Scene {
-  constructor() {
-    super('HelpScene');
-  }
-  init(data) {
-    this.previousScene = data.previousScene || 'MainScene';
-  }
+  constructor() { super('HelpScene'); }
+  init(data) { this.previousScene = data.previousScene || 'MainScene'; }
   create() {
     this.add.rectangle(GAME_WIDTH/2, GAME_HEIGHT/2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7);
     let helpText =
@@ -1161,23 +1147,16 @@ Player 3:
 Additional:
   Press "?" to toggle this help screen.`;
     this.add.text(50, 50, helpText, { fontSize: '20px', fill: '#fff', wordWrap: { width: GAME_WIDTH - 100 } });
-    this.input.keyboard.once('keydown-?', () => {
-      this.scene.stop('HelpScene');
-    });
+    this.input.keyboard.once('keydown-?', () => { this.scene.stop('HelpScene'); });
     let closeBtn = document.createElement("button");
     closeBtn.id = "closeHelpBtn";
     closeBtn.textContent = "Close Help";
-    closeBtn.onclick = () => {
-      closeBtn.remove();
-      this.scene.stop('HelpScene');
-    };
+    closeBtn.onclick = () => { closeBtn.remove(); this.scene.stop('HelpScene'); };
     document.body.appendChild(closeBtn);
   }
 }
 
-/* ======================================================================
-   Game Configuration and Initialization
-   ====================================================================== */
+/* --- Game Configuration --- */
 const config = {
   type: Phaser.AUTO,
   width: GAME_WIDTH,
