@@ -87,53 +87,54 @@ class Player {
     const currentTime = this.scene.time.now;
     
     // --- Keyboard Fallback (for testing or when no gamepad assigned) ---
-    if (!this.keys) {
-      if (this.playerIndex === 0) {
-        this.keys = this.scene.input.keyboard.addKeys({
-          left: Phaser.Input.Keyboard.KeyCodes.LEFT,
-          right: Phaser.Input.Keyboard.KeyCodes.RIGHT,
-          up: Phaser.Input.Keyboard.KeyCodes.UP,
-          down: Phaser.Input.Keyboard.KeyCodes.DOWN,
-          sprint: Phaser.Input.Keyboard.KeyCodes.SHIFT,
-          attack1: Phaser.Input.Keyboard.KeyCodes.SPACE,
-          attack2: Phaser.Input.Keyboard.KeyCodes.Q,
-          attack3: Phaser.Input.Keyboard.KeyCodes.E
-        });
-      } else if (this.playerIndex === 1) {
-        this.keys = this.scene.input.keyboard.addKeys({
-          left: Phaser.Input.Keyboard.KeyCodes.A,
-          right: Phaser.Input.Keyboard.KeyCodes.D,
-          up: Phaser.Input.Keyboard.KeyCodes.W,
-          down: Phaser.Input.Keyboard.KeyCodes.S,
-          sprint: Phaser.Input.Keyboard.KeyCodes.CONTROL,
-          attack1: Phaser.Input.Keyboard.KeyCodes.F,
-          attack2: Phaser.Input.Keyboard.KeyCodes.G,
-          attack3: Phaser.Input.Keyboard.KeyCodes.H
-        });
-      } else if (this.playerIndex === 2) {
-        this.keys = this.scene.input.keyboard.addKeys({
-          left: Phaser.Input.Keyboard.KeyCodes.J,
-          right: Phaser.Input.Keyboard.KeyCodes.L,
-          up: Phaser.Input.Keyboard.KeyCodes.I,
-          down: Phaser.Input.Keyboard.KeyCodes.K,
-          sprint: Phaser.Input.Keyboard.KeyCodes.U,
-          attack1: Phaser.Input.Keyboard.KeyCodes.O,
-          attack2: Phaser.Input.Keyboard.KeyCodes.P,
-          attack3: Phaser.Input.Keyboard.KeyCodes.OPEN_BRACKET
-        });
-      } else if (this.playerIndex === 3) {
-        this.keys = this.scene.input.keyboard.addKeys({
-          left: Phaser.Input.Keyboard.KeyCodes.NUMPAD_4,
-          right: Phaser.Input.Keyboard.KeyCodes.NUMPAD_6,
-          up: Phaser.Input.Keyboard.KeyCodes.NUMPAD_8,
-          down: Phaser.Input.Keyboard.KeyCodes.NUMPAD_2,
-          sprint: Phaser.Input.Keyboard.KeyCodes.NUMPAD_0,
-          attack1: Phaser.Input.Keyboard.KeyCodes.NUMPAD_1,
-          attack2: Phaser.Input.Keyboard.KeyCodes.NUMPAD_3,
-          attack3: Phaser.Input.Keyboard.KeyCodes.NUMPAD_5
-        });
+    if (!this.gamepad) {
+      if (!this.keys) {
+        if (this.playerIndex === 0) {
+          this.keys = this.scene.input.keyboard.addKeys({
+            left: Phaser.Input.Keyboard.KeyCodes.LEFT,
+            right: Phaser.Input.Keyboard.KeyCodes.RIGHT,
+            up: Phaser.Input.Keyboard.KeyCodes.UP,
+            down: Phaser.Input.Keyboard.KeyCodes.DOWN,
+            sprint: Phaser.Input.Keyboard.KeyCodes.SHIFT,
+            attack1: Phaser.Input.Keyboard.KeyCodes.SPACE,
+            attack2: Phaser.Input.Keyboard.KeyCodes.Q,
+            attack3: Phaser.Input.Keyboard.KeyCodes.E
+          });
+        } else if (this.playerIndex === 1) {
+          this.keys = this.scene.input.keyboard.addKeys({
+            left: Phaser.Input.Keyboard.KeyCodes.A,
+            right: Phaser.Input.Keyboard.KeyCodes.D,
+            up: Phaser.Input.Keyboard.KeyCodes.W,
+            down: Phaser.Input.Keyboard.KeyCodes.S,
+            sprint: Phaser.Input.Keyboard.KeyCodes.CONTROL,
+            attack1: Phaser.Input.Keyboard.KeyCodes.F,
+            attack2: Phaser.Input.Keyboard.KeyCodes.G,
+            attack3: Phaser.Input.Keyboard.KeyCodes.H
+          });
+        } else if (this.playerIndex === 2) {
+          this.keys = this.scene.input.keyboard.addKeys({
+            left: Phaser.Input.Keyboard.KeyCodes.J,
+            right: Phaser.Input.Keyboard.KeyCodes.L,
+            up: Phaser.Input.Keyboard.KeyCodes.I,
+            down: Phaser.Input.Keyboard.KeyCodes.K,
+            sprint: Phaser.Input.Keyboard.KeyCodes.U,
+            attack1: Phaser.Input.Keyboard.KeyCodes.O,
+            attack2: Phaser.Input.Keyboard.KeyCodes.P,
+            attack3: Phaser.Input.Keyboard.KeyCodes.OPEN_BRACKET
+          });
+        } else if (this.playerIndex === 3) {
+          this.keys = this.scene.input.keyboard.addKeys({
+            left: Phaser.Input.Keyboard.KeyCodes.NUMPAD_4,
+            right: Phaser.Input.Keyboard.KeyCodes.NUMPAD_6,
+            up: Phaser.Input.Keyboard.KeyCodes.NUMPAD_8,
+            down: Phaser.Input.Keyboard.KeyCodes.NUMPAD_2,
+            sprint: Phaser.Input.Keyboard.KeyCodes.NUMPAD_0,
+            attack1: Phaser.Input.Keyboard.KeyCodes.NUMPAD_1,
+            attack2: Phaser.Input.Keyboard.KeyCodes.NUMPAD_3,
+            attack3: Phaser.Input.Keyboard.KeyCodes.NUMPAD_5
+          });
+        }
       }
-    }
 
       // Movement using arrow keys.
       let velocityX = 0, velocityY = 0;
