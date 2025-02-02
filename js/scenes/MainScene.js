@@ -77,8 +77,9 @@ export default class MainScene extends Phaser.Scene {
   
   createPlayers() {
     this.players = [];
+    this.enemies = [];  // Initialize enemies array
     
-    // Create 2 players with different spawn positions
+    // Create players first
     const playerConfigs = [
       { x: ARENA_CENTER.x - 100, y: ARENA_CENTER.y, god: GODS[0].name },
       { x: ARENA_CENTER.x + 100, y: ARENA_CENTER.y, god: GODS[1].name }
@@ -106,10 +107,39 @@ export default class MainScene extends Phaser.Scene {
       
       this.players.push(player);
     });
+
+    // Create enemies for remaining gods
+    const remainingGods = GODS.filter(god => 
+      !playerConfigs.some(config => config.god === god.name)
+    );
+
+    remainingGods.forEach((god, index) => {
+      const angle = (index / remainingGods.length) * Math.PI * 2;
+      const radius = GAME_CONFIG.arena.RADIUS * 0.8;
+      const x = ARENA_CENTER.x + Math.cos(angle) * radius;
+      const y = ARENA_CENTER.y + Math.sin(angle) * radius;
+      
+      const enemy = new Enemy(this, x, y, god.name);
+      enemy.god = god.name;
+      
+      const godConfig = GOD_CONFIG[god.name];
+      Object.assign(enemy, {
+        maxHealth: godConfig.health,
+        health: godConfig.health,
+        damage: godConfig.damage,
+        maxShield: godConfig.shield,
+        shield: godConfig.shield,
+        maxBullets: godConfig.bullets,
+        currentBullets: godConfig.bullets
+      });
+      
+      this.enemies.push(enemy);
+    });
   }
   
   update(time, delta) {
     this.players.forEach(player => player.update(delta));
+    this.enemies.forEach(enemy => enemy.update(time, delta));
     this.combatManager.update(delta);
   }
 }

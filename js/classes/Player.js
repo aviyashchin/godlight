@@ -159,15 +159,15 @@ export default class Player {
       // Keyboard controls
       if (this.keys) {
         if (this.keys.melee1.isDown) {
-          this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "regular", this);
+          this.scene.combatManager.spawnMeleeAttack(this.sprite.x, this.sprite.y, "regular", this);
           this.currentBullets--;
           this.lastAttackTime = currentTime;
         } else if (this.keys.melee2.isDown) {
-          this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "spin", this);
+          this.scene.combatManager.spawnMeleeAttack(this.sprite.x, this.sprite.y, "spin", this);
           this.currentBullets--;
           this.lastAttackTime = currentTime;
         } else if (this.keys.projectile.isDown) {
-          this.scene.spawnProjectileAttack(
+          this.scene.combatManager.spawnProjectile(
             this.sprite.x, 
             this.sprite.y, 
             this, 
@@ -181,16 +181,16 @@ export default class Player {
 
       // Gamepad controls
       if (this.gamepad) {
-        if (this.gamepad.buttons[0].pressed) { // A button
-          this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "regular", this);
+        if (this.gamepad.buttons[0].pressed) {
+          this.scene.combatManager.spawnMeleeAttack(this.sprite.x, this.sprite.y, "regular", this);
           this.currentBullets--;
           this.lastAttackTime = currentTime;
-        } else if (this.gamepad.buttons[1].pressed) { // B button
-          this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "spin", this);
+        } else if (this.gamepad.buttons[1].pressed) {
+          this.scene.combatManager.spawnMeleeAttack(this.sprite.x, this.sprite.y, "spin", this);
           this.currentBullets--;
           this.lastAttackTime = currentTime;
-        } else if (this.gamepad.buttons[2].pressed) { // X button
-          this.scene.spawnProjectileAttack(
+        } else if (this.gamepad.buttons[2].pressed) {
+          this.scene.combatManager.spawnProjectile(
             this.sprite.x, 
             this.sprite.y, 
             this, 
