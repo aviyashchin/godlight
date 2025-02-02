@@ -8,9 +8,7 @@ class ObjectPool {
     this.createFn = createFn;
     this.maxSize = maxSize;
     this.pool = [];
-    
-    // Don't create initial objects - they'll be created on demand
-    // since they need specific parameters
+    this.activeObjects = new Set();
   }
 
   get(params) {
