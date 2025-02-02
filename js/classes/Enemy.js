@@ -1,6 +1,5 @@
 // js/classes/Enemy.js
 import { GODS, GOD_CONFIG } from '../config/gameConfig.js';
-import { ARENA_CENTER, ARENA_RADIUS } from '../config/constants.js';
 
 export default class Enemy {
   constructor(scene, x, y, god) {
@@ -88,9 +87,16 @@ export default class Enemy {
       
       if (dist < this.attackRange && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
         if (Math.random() < 0.7) {
-          this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, dx/dist, dy/dist);
+          this.scene.combatManager.spawnProjectile(
+            this.sprite.x, this.sprite.y,
+            this, dx/dist, dy/dist
+          );
         } else {
-          this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, Math.random() < 0.3 ? "spin" : "regular", this);
+          this.scene.combatManager.spawnMeleeAttack(
+            this.sprite.x, this.sprite.y,
+            Math.random() < 0.3 ? "spin" : "regular",
+            this
+          );
         }
         this.currentBullets--;
         this.lastAttackTime = time;
@@ -103,12 +109,16 @@ export default class Enemy {
     }
 
     // Arena bounds
-    const toCenterX = this.sprite.x - ARENA_CENTER.x;
-    const toCenterY = this.sprite.y - ARENA_CENTER.y;
+    const centerX = this.scene.cameras.main.width / 2;
+    const centerY = this.scene.cameras.main.height / 2;
+    const toCenterX = this.sprite.x - centerX;
+    const toCenterY = this.sprite.y - centerY;
     const distToCenter = Math.sqrt(toCenterX*toCenterX + toCenterY*toCenterY);
-    if (distToCenter > ARENA_RADIUS) {
-      this.sprite.x = ARENA_CENTER.x + (toCenterX/distToCenter) * ARENA_RADIUS;
-      this.sprite.y = ARENA_CENTER.y + (toCenterY/distToCenter) * ARENA_RADIUS;
+    const maxRadius = Math.min(centerX, centerY) * 0.9;
+    
+    if (distToCenter > maxRadius) {
+      this.sprite.x = centerX + (toCenterX/distToCenter) * maxRadius;
+      this.sprite.y = centerY + (toCenterY/distToCenter) * maxRadius;
       this.state = "patrol";
     }
 
