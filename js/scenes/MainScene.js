@@ -97,130 +97,94 @@ export default class MainScene extends Phaser.Scene {
     this.meleeAttacks = [];
     this.projectiles = [];
     this.powerUps = [];
+    // --- Create Combatants ---
+    // For testing, create exactly 2 players and the remaining as enemies.
     this.players = [];
     this.enemies = [];
-    let nonHadesIndex = 0;
-    for (let i = 0; i < GODS.length; i++) {
-      let godName = GODS[i].name;
-      let spawnX, spawnY;
-      if (godName === "Hades") {
-        let angle = Phaser.Math.FloatBetween(0, 2*Math.PI);
-        let r = Phaser.Math.FloatBetween(0, 75);
-        spawnX = ARENA_CENTER.x + r * Math.cos(angle);
-        spawnY = ARENA_CENTER.y + r * Math.sin(angle);
-      } else {
-        let zone = this.pieZones.find(z => z.god === godName);
-        if (zone) {
-          let angle = Phaser.Math.FloatBetween(zone.startAngle, zone.endAngle);
-          let r = Phaser.Math.FloatBetween(0, zone.radius * 0.8);
-          spawnX = zone.centerX + r * Math.cos(angle);
-          spawnY = zone.centerY + r * Math.sin(angle);
-        } else {
-          spawnX = Phaser.Math.Between(50, GAME_WIDTH - 50);
-          spawnY = Phaser.Math.Between(50, GAME_HEIGHT - 50);
-        }
-      }
-      if (i < 4) {
-        let shapeSides = (godName === "Hades") ? 0 : (3 + nonHadesIndex++);
-        let player = new Player(this, spawnX, spawnY, i, shapeSides);
-        player.god = godName;
-        player.sprite.setTexture(godName === "Hades" ? "circle_hades" : "poly_" + shapeSides);
-        player.homeZone = (godName === "Hades") ? this.hadesCircle : this.pieZones.find(z => z.god === godName);
-        let cfg = GOD_CONFIG[godName];
-        player.maxHealth = cfg.health;
-        player.health = cfg.health;
-        player.damage = cfg.damage;
-        player.maxShield = cfg.shield;
-        player.shield = cfg.shield;
-        player.maxBullets = cfg.bullets;
-        player.currentBullets = cfg.bullets;
-        this.players.push(player);
-      } else {
-        let shapeSides = (godName === "Hades") ? 0 : (3 + nonHadesIndex++);
-        let enemy = new Enemy(this, spawnX, spawnY, i, shapeSides);
-        enemy.god = godName;
-        enemy.sprite.setTexture(godName === "Hades" ? "circle_hades" : "poly_" + shapeSides);
-        enemy.homeZone = this.pieZones.find(z => z.god === godName);
-        let cfg = GOD_CONFIG[godName];
-        enemy.maxHealth = cfg.health;
-        enemy.health = cfg.health;
-        enemy.damage = cfg.damage;
-        enemy.maxShield = cfg.shield;
-        enemy.shield = cfg.shield;
-        enemy.maxBullets = cfg.bullets;
-        enemy.currentBullets = cfg.bullets;
-        this.enemies.push(enemy);
-      }
+    // Create 2 players for local two-player mode.
+    for (let i = 0; i < 2; i++) {
+      // For simplicity, we choose a god from GODS (or assign a default god)
+      let godName = GODS[i].name; // Use first 2 gods for players
+      // Spawn at different positions.
+      let spawnX = ARENA_CENTER.x + (i === 0 ? -100 : 100);
+      let spawnY = ARENA_CENTER.y;
+      let shapeSides = (godName === "Hades") ? 0 : (3 + i);
+      let player = new Player(this, spawnX, spawnY, i, shapeSides);
+      player.god = godName;
+      player.sprite.setTexture(godName === "Hades" ? "circle_hades" : "poly_" + shapeSides);
+      // Assign each player a home zone from the pieZones (or fallback to hadesCircle)
+      player.homeZone = (godName === "Hades") ? this.hadesCircle : this.pieZones.find(z => z.god === godName);
+      let cfg = GOD_CONFIG[godName];
+      player.maxHealth = cfg.health;
+      player.health = cfg.health;
+      player.damage = cfg.damage;
+      player.maxShield = cfg.shield;
+      player.shield = cfg.shield;
+      player.maxBullets = cfg.bullets;
+      player.currentBullets = cfg.bullets;
+      this.players.push(player);
     }
-    
-    // ...
-    // Create split-screen cameras if more than one player.
+    // Create the rest as enemies (if desired, or skip for testing).
+    for (let i = 2; i < GODS.length; i++) {
+      let godName = GODS[i].name;
+      let spawnX = Phaser.Math.Between(50, GAME_WIDTH - 50);
+      let spawnY = Phaser.Math.Between(50, GAME_HEIGHT - 50);
+      let shapeSides = (godName === "Hades") ? 0 : (3 + i);
+      let enemy = new Enemy(this, spawnX, spawnY, i, shapeSides);
+      enemy.god = godName;
+      enemy.sprite.setTexture(godName === "Hades" ? "circle_hades" : "poly_" + shapeSides);
+      enemy.homeZone = this.pieZones.find(z => z.god === godName);
+      let cfg = GOD_CONFIG[godName];
+      enemy.maxHealth = cfg.health;
+      enemy.health = cfg.health;
+      enemy.damage = cfg.damage;
+      enemy.maxShield = cfg.shield;
+      enemy.shield = cfg.shield;
+      enemy.maxBullets = cfg.bullets;
+      enemy.currentBullets = cfg.bullets;
+      this.enemies.push(enemy);
+    }
+
+    // --- Create Two-Player Side-by-Side Split-Screen ---  
     if (this.players.length === 2) {
       // Remove the default camera.
-      this.cameras.remove(this.cameras.main);
+      if (this.cameras.main) {
+        this.cameras.remove(this.cameras.main);
+      }
       this.playerCameras = [];
       let camWidth = GAME_WIDTH / 2;
       let camHeight = GAME_HEIGHT;
+      // Create two cameras – player 0 on the left, player 1 on the right.
       this.players.forEach((player, i) => {
-        // For side-by-side, player 0 is on the left and player 1 is on the right.
-        let x = i * camWidth;
+        let x = i * camWidth;  // 0 for player 0, camWidth for player 1.
         let y = 0;
         let cam = this.cameras.add(x, y, camWidth, camHeight);
         cam.startFollow(player.sprite);
         this.playerCameras.push(cam);
-        // Assign the camera to the player for any camera-specific effects (such as curse-induced rotations).
+        // Save reference to the player's camera (for use in curse effects, etc.)
         player.camera = cam;
-        // Create an individual HUD overlay for each player.
+        // Create individual HUD overlays for each player.
         player.hudText = this.add.text(x + 10, y + 10, "", { fontSize: '14px', fill: '#fff' })
                                 .setScrollFactor(0).setDepth(2000);
       });
     }
-    
-    // Instantiate the CurseManager.
-    this.curseManager = new CurseManager(this, this.pieZones);
-    
-    // Spawn power-ups periodically.
-    this.time.addEvent({
-      delay: 15000,
-      callback: () => {
-        let angle = Phaser.Math.FloatBetween(0, 2*Math.PI);
-        let r = Math.sqrt(Math.random()) * ARENA_RADIUS;
-        let puX = ARENA_CENTER.x + r * Math.cos(angle);
-        let puY = ARENA_CENTER.y + r * Math.sin(angle);
-        let type = (Math.random() < 0.5) ? "shield" : "extraSpeed";
-        let powerUp = new PowerUp(this, puX, puY, type);
-        this.powerUps.push(powerUp);
-      },
-      loop: true
-    });
-    
-    // Add help icon.
-    this.helpIcon = this.add.text(GAME_WIDTH - 30, 10, "?", { fontSize: '24px', fill: '#fff' });
-    this.helpIcon.setInteractive();
-    this.helpIcon.on('pointerdown', () => {
-      if (this.scene.isActive('HelpScene')) this.scene.stop('HelpScene');
-      else this.scene.launch('HelpScene', { previousScene: 'MainScene' });
-    });
-    this.input.keyboard.on('keydown', (event) => {
-      if (event.key === '?') {
-        if (this.scene.isActive('HelpScene')) this.scene.stop('HelpScene');
-        else this.scene.launch('HelpScene', { previousScene: 'MainScene' });
-      }
-    });
-    
-    // Gamepad assignment.
+
+    // --- Gamepad Assignment ---
+    // If there is at least one gamepad connected:
     if (this.input.gamepad.total > 0) {
-      this.input.gamepad.gamepads.forEach((pad, idx) => {
-        if (this.players[idx] && !this.players[idx].gamepad)
-          this.players[idx].gamepad = pad;
-      });
+      const pads = this.input.gamepad.gamepads;
+      if (pads.length >= 2) {
+        // If two gamepads are available, assign each to one player.
+        this.players[0].gamepad = pads[0];
+        this.players[1].gamepad = pads[1];
+      } else {
+        // If only one gamepad is connected, assign it only to player 0.
+        this.players[0].gamepad = pads[0];
+        // Player 1 will then use keyboard input.
+      }
     }
-    this.input.gamepad.on('connected', (pad) => {
-      this.players.forEach((player, idx) => {
-        if (!player.gamepad && this.input.gamepad.gamepads[idx])
-          this.players[idx].gamepad = pad;
-      });
-    });
+    // Optionally remove or adjust any 'gamepad connected' event listeners that might reassign controllers.
+
   }
   
   updateProjectileAttacks(delta) {
