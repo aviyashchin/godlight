@@ -1,7 +1,6 @@
 // js/classes/Enemy.js
 import { ENEMY_SPEED, ARENA_CENTER, ARENA_RADIUS } from '../helpers.js';
-import { GODS, GOD_CONFIG } from '../helpers.js';
-import { GOD_CONFIG } from '../config/gameConfig.js';
+import { GODS, GOD_CONFIG } from '../config/gameConfig.js';
 
 export default class Enemy {
   constructor(scene, x, y, god) {
@@ -11,6 +10,20 @@ export default class Enemy {
     this.sprite.setScale(0.5);
     this.sprite.setTint(GOD_CONFIG[god].zoneColor);
     
+    // Combat stats
+    const cfg = GOD_CONFIG[god];
+    Object.assign(this, {
+      maxHealth: cfg.health,
+      health: cfg.health,
+      damage: cfg.damage,
+      maxShield: cfg.shield,
+      shield: cfg.shield,
+      maxBullets: cfg.bullets,
+      currentBullets: cfg.bullets,
+      reloadRate: cfg.bulletReload
+    });
+
+    // Movement and targeting
     this.lastFacing = { x: 1, y: 0 };
     this.speed = 100;
     this.state = "chase";
@@ -20,7 +33,7 @@ export default class Enemy {
     this.attackRange = 200;
     this.lastReloadTime = 0;
     
-    // Initialize nameText and healthBar
+    // UI elements
     this.nameText = scene.add.text(x - 20, y - 30, "E: " + this.god, { fontSize: '12px', fill: '#fff' });
     this.healthBar = scene.add.graphics();
   }
@@ -54,44 +67,45 @@ export default class Enemy {
       }
     });
 
-    // Update facing direction and movement
     if (nearestTarget) {
-      const dirX = nearestTarget.sprite.x - this.sprite.x;
-      const dirY = nearestTarget.sprite.y - this.sprite.y;
-      const mag = Math.sqrt(dirX * dirX + dirY * dirY);
-      
-      if (mag > 0) {
-        this.lastFacing.x = dirX / mag;
-        this.lastFacing.y = dirY / mag;
-        
-        // Move if not in attack range
-        if (mag > this.attackRange) {
-          this.sprite.x += (this.lastFacing.x * this.speed * delta) / 1000;
-          this.sprite.y += (this.lastFacing.y * this.speed * delta) / 1000;
-        }
-      }
+      this.handleCombat(nearestTarget, shortestDistance, time, delta);
+    }
+  }
 
-      // Attack if in range
-      if (shortestDistance < this.attackRange && 
-          time > this.lastAttackTime + this.attackCooldown && 
-          this.currentBullets > 0) {
-        
-        if (Math.random() < 0.7) {
-          this.scene.combatManager.spawnProjectile(
-            this.sprite.x, this.sprite.y,
-            this, this.lastFacing.x, this.lastFacing.y
-          );
-        } else {
-          this.scene.combatManager.spawnMeleeAttack(
-            this.sprite.x, this.sprite.y,
-            Math.random() < 0.3 ? "spin" : "regular",
-            this
-          );
-        }
-        
-        this.currentBullets--;
-        this.lastAttackTime = time;
+  handleCombat(target, distance, time, delta) {
+    const dirX = target.sprite.x - this.sprite.x;
+    const dirY = target.sprite.y - this.sprite.y;
+    const mag = Math.sqrt(dirX * dirX + dirY * dirY);
+    
+    if (mag > 0) {
+      this.lastFacing.x = dirX / mag;
+      this.lastFacing.y = dirY / mag;
+      
+      if (distance > this.attackRange) {
+        this.sprite.x += (this.lastFacing.x * this.speed * delta) / 1000;
+        this.sprite.y += (this.lastFacing.y * this.speed * delta) / 1000;
       }
+    }
+
+    if (distance < this.attackRange && 
+        time > this.lastAttackTime + this.attackCooldown && 
+        this.currentBullets > 0) {
+      
+      if (Math.random() < 0.7) {
+        this.scene.combatManager.spawnProjectile(
+          this.sprite.x, this.sprite.y,
+          this, this.lastFacing.x, this.lastFacing.y
+        );
+      } else {
+        this.scene.combatManager.spawnMeleeAttack(
+          this.sprite.x, this.sprite.y,
+          Math.random() < 0.3 ? "spin" : "regular",
+          this
+        );
+      }
+      
+      this.currentBullets--;
+      this.lastAttackTime = time;
     }
   }
 
