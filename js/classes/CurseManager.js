@@ -1,5 +1,4 @@
 // js/classes/CurseManager.js
-import Phaser from 'https://unpkg.com/phaser@3.55.2/dist/phaser.module.js';
 import { PLAYER_SPEED } from '../helpers.js';
 
 export default class CurseManager {
