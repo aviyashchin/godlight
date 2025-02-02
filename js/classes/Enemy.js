@@ -81,31 +81,37 @@ export default class Enemy {
       this.lastFacing.x = dirX / mag;
       this.lastFacing.y = dirY / mag;
       
+      // Move if too far
       if (distance > this.attackRange) {
         this.sprite.x += (this.lastFacing.x * this.speed * delta) / 1000;
         this.sprite.y += (this.lastFacing.y * this.speed * delta) / 1000;
       }
-    }
-
-    if (distance < this.attackRange && 
-        time > this.lastAttackTime + this.attackCooldown && 
-        this.currentBullets > 0) {
       
-      if (Math.random() < 0.7) {
-        this.scene.combatManager.spawnProjectile(
-          this.sprite.x, this.sprite.y,
-          this, this.lastFacing.x, this.lastFacing.y
-        );
-      } else {
-        this.scene.combatManager.spawnMeleeAttack(
-          this.sprite.x, this.sprite.y,
-          Math.random() < 0.3 ? "spin" : "regular",
-          this
-        );
+      // Attack if in range
+      if (distance < this.attackRange && 
+          time - this.lastAttackTime > this.attackCooldown && 
+          this.currentBullets > 0) {
+        
+        if (Math.random() < 0.7) {
+          this.scene.combatManager.spawnProjectile(
+            this.sprite.x, 
+            this.sprite.y,
+            this, 
+            this.lastFacing.x, 
+            this.lastFacing.y
+          );
+        } else {
+          this.scene.combatManager.spawnMeleeAttack(
+            this.sprite.x, 
+            this.sprite.y,
+            Math.random() < 0.3 ? "spin" : "regular",
+            this
+          );
+        }
+        
+        this.currentBullets--;
+        this.lastAttackTime = time;
       }
-      
-      this.currentBullets--;
-      this.lastAttackTime = time;
     }
   }
 
