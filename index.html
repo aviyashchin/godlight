@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>GodLight! - Top-Down Shooter Prototype</title>
+  <title>GodLight! - Top-Down Melee Prototype</title>
   <style>
     body { margin: 0; }
     canvas { display: block; }
-    /* Help screen close button style */
+    /* Simple styling for the help screen close button */
     #closeHelpBtn {
       position: absolute;
       top: 20px;
@@ -17,18 +17,19 @@
       color: #fff;
       border: none;
       cursor: pointer;
+      z-index: 1000;
     }
   </style>
-  <!-- Include Phaser.js -->
+  <!-- Include Phaser.js from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
 </head>
 <body>
 <script>
-// =======================
+// ======================================================================
 // Global Configuration
-// =======================
-const GAME_WIDTH = 1024;
-const GAME_HEIGHT = 768;
+// ======================================================================
+const GAME_WIDTH = 3072;  // 3x original 1024
+const GAME_HEIGHT = 2304; // 3x original 768
 
 // List of gods (order matters for zone assignment)
 const GODS = [
@@ -44,7 +45,7 @@ const GODS = [
   { name: "Hermes",    boon: "Chaotic Speed – Your movement direction changes randomly every 3 seconds." },
   { name: "Dionysus",  boon: "Eternal Hangover – Your screen slowly spins clockwise, rotating faster with each kill." },
   { name: "Demeter",   boon: "Withering Touch – Grass dies around you, slowing all allies in the dead zone." },
-  { name: "Hera",      boon: "Royal Tax – Your allies lose gold when near you." },
+  { name: "Hera",      boon: "Royal Tax – Your allies lose gold when near you." }
 ];
 
 // God-specific configuration (stats, zone colors, etc.)
@@ -67,18 +68,55 @@ const GOD_CONFIG = {
 // Xbox controller button indices.
 const BUTTONS = {
   A: 0, // Sprint boost.
-  B: 1, // Attack (melee).
+  B: 1, // Melee Attack.
   X: 2, // Alternate melee attack.
   Y: 3  // Spin melee attack.
 };
 
-// Make the game 50% slower: adjust speeds.
+// Adjusted speeds (50% slower than before).
 const PLAYER_SPEED = 100; // was 200
 const ENEMY_SPEED = 50;   // was 100
 
-// =======================
-// PieZone Class (for circular arena slices)
-// =======================
+// ======================================================================
+// MINIMAP & HUD
+// ======================================================================
+// (We implement a secondary camera as a minimap and a HUD text display.)
+
+// ======================================================================
+// MeleeAttack Class (Temporary Hitbox for Melee Attacks)
+// ======================================================================
+class MeleeAttack {
+  constructor(scene, x, y, width, height, rotation, damage, owner) {
+    this.scene = scene;
+    // Create a rectangle representing the melee hitbox.
+    this.hitbox = scene.add.rectangle(x, y, width, height, 0xff0000, 0.5);
+    this.hitbox.rotation = rotation;
+    this.damage = damage;
+    this.owner = owner;
+    this.lifetime = 200; // milliseconds
+  }
+  
+  update(delta) {
+    this.lifetime -= delta;
+    if (this.lifetime <= 0) {
+      this.destroy();
+      return false;
+    }
+    return true;
+  }
+  
+  getBounds() {
+    return this.hitbox.getBounds();
+  }
+  
+  destroy() {
+    this.hitbox.destroy();
+  }
+}
+
+// ======================================================================
+// PieZone Class (For Circular Arena Slices)
+// ======================================================================
 class PieZone {
   constructor(scene, centerX, centerY, radius, startAngle, endAngle, god, zoneColor) {
     this.scene = scene;
@@ -127,46 +165,14 @@ class PieZone {
   }
 }
 
-// =======================
-// MeleeAttack Class (hitbox for melee attacks)
-// =======================
-class MeleeAttack {
-  constructor(scene, x, y, width, height, rotation, damage, owner) {
-    this.scene = scene;
-    // Create a rectangle to represent the melee hitbox.
-    this.hitbox = scene.add.rectangle(x, y, width, height, 0xff0000, 0.5);
-    this.hitbox.rotation = rotation;
-    this.damage = damage;
-    this.owner = owner;
-    this.lifetime = 200; // in ms
-  }
-  
-  update(delta) {
-    this.lifetime -= delta;
-    if (this.lifetime <= 0) {
-      this.destroy();
-      return false;
-    }
-    return true;
-  }
-  
-  getBounds() {
-    return this.hitbox.getBounds();
-  }
-  
-  destroy() {
-    this.hitbox.destroy();
-  }
-}
-
-// =======================
+// ======================================================================
 // Player Class Definition
-// =======================
+// ======================================================================
 class Player {
   constructor(scene, x, y, playerIndex) {
     this.scene = scene;
     this.playerIndex = playerIndex;
-    // Assign a god (later we spawn in the matching zone).
+    // Assign a god (will be overridden by spawn in matching zone)
     this.god = Phaser.Utils.Array.GetRandom(GODS).name;
     let cfg = GOD_CONFIG[this.god] || { health: 100, damage: 10, shield: 20, bullets: 10, bulletReload: 1000, shieldReload: 5000 };
     this.maxHealth = cfg.health;
@@ -182,7 +188,7 @@ class Player {
     this.lastShieldReloadTime = 0;
     
     this.speed = PLAYER_SPEED;
-    // Create a smaller triangle (30x30) for the player.
+    // Create a triangle sprite (30x30) for the player.
     this.sprite = scene.add.sprite(x, y, 'player');
     this.sprite.setScale(0.75);
     this.sprite.setTint(Phaser.Display.Color.GetColor(100 + playerIndex * 50, 100, 200));
@@ -202,12 +208,11 @@ class Player {
     const deltaTime = delta / 1000;
     const currentTime = this.scene.time.now;
     
-    // Auto-reload bullets.
+    // Auto-reload bullets and shield.
     if (currentTime - this.lastReloadTime > this.reloadRate && this.currentBullets < this.maxBullets) {
       this.currentBullets++;
       this.lastReloadTime = currentTime;
     }
-    // Auto-reload shield.
     if (currentTime - this.lastShieldReloadTime > this.shieldReloadRate && this.shield < this.maxShield) {
       this.shield++;
       this.lastShieldReloadTime = currentTime;
@@ -215,10 +220,9 @@ class Player {
     this.bulletText.setText("Bullets: " + this.currentBullets);
     this.bulletText.setPosition(this.sprite.x - 20, this.sprite.y - 60);
     
-    // Input handling: keyboard fallback or gamepad.
+    // Input handling (keyboard fallback or gamepad).
     if (!this.gamepad) {
       if (!this.keys) {
-        // Unique keyboard controls per player.
         if (this.playerIndex === 0) {
           this.keys = this.scene.input.keyboard.addKeys({
             left: Phaser.Input.Keyboard.KeyCodes.LEFT,
@@ -326,7 +330,6 @@ class Player {
     this.updateHealthBar();
   }
   
-  // Melee attack variants now call the scene's spawnMeleeAttack.
   regularAttack() {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
@@ -378,9 +381,9 @@ class Player {
   }
 }
 
-// =======================
-// Enemy Class Definition (NPC)
-// =======================
+// ======================================================================
+// Enemy Class Definition (NPC with Simple State-based AI)
+// ======================================================================
 class Enemy {
   constructor(scene, x, y) {
     this.scene = scene;
@@ -394,7 +397,11 @@ class Enemy {
     this.speed = ENEMY_SPEED;
     this.attackCooldown = 1000;
     this.lastAttackTime = 0;
-    // Create a smaller square enemy.
+    // Initialize state-based AI.
+    this.state = "patrol";
+    this.stateTime = 0;
+    this.patrolDirection = { x: Math.random()*2-1, y: Math.random()*2-1 };
+    // Create enemy as a smaller square.
     this.sprite = scene.add.sprite(x, y, 'enemy');
     this.sprite.setScale(0.66);
     this.sprite.setTint(0xff00ff);
@@ -403,35 +410,84 @@ class Enemy {
   
   update(time, delta) {
     const deltaTime = delta / 1000;
+    this.stateTime += delta;
     if (time - this.lastReloadTime > this.reloadRate && this.currentBullets < this.maxBullets) {
       this.currentBullets++;
       this.lastReloadTime = time;
     }
-    let nearest = null, minDist = Infinity;
-    this.scene.players.forEach(player => {
-      let dx = player.sprite.x - this.sprite.x;
-      let dy = player.sprite.y - this.sprite.y;
-      let dist = Math.sqrt(dx*dx + dy*dy);
-      if (dist < minDist) { minDist = dist; nearest = player; }
-    });
-    if (nearest) {
-      let dx = nearest.sprite.x - this.sprite.x;
-      let dy = nearest.sprite.y - this.sprite.y;
-      let mag = Math.sqrt(dx*dx + dy*dy);
-      if (mag > 0) {
-        let vx = (dx / mag) * this.speed;
-        let vy = (dy / mag) * this.speed;
-        this.sprite.x += vx * deltaTime;
-        this.sprite.y += vy * deltaTime;
+    
+    // --- AI: Check for nearby melee attacks to dodge ---
+    let nearMelee = false;
+    let dodgeVector = { x: 0, y: 0 };
+    if (this.scene.meleeAttacks) {
+      this.scene.meleeAttacks.getChildren().forEach(attack => {
+        let dx = attack.hitbox.x - this.sprite.x;
+        let dy = attack.hitbox.y - this.sprite.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 100) {
+          nearMelee = true;
+          dodgeVector.x -= dx;
+          dodgeVector.y -= dy;
+        }
+      });
+    }
+    
+    if (nearMelee) {
+      this.state = "dodge";
+      this.stateTime = 0;
+    } else {
+      // Find nearest player.
+      let nearest = null, minDist = Infinity;
+      this.scene.players.forEach(player => {
+        let dx = player.sprite.x - this.sprite.x;
+        let dy = player.sprite.y - this.sprite.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < minDist) { minDist = dist; nearest = player; }
+      });
+      if (nearest && minDist < 400) {
+        this.state = "chase";
+        this.stateTime = 0;
+        this.targetPlayer = nearest;
+      } else {
+        this.state = "patrol";
+        if (this.stateTime > 2000) { // Change patrol direction every 2 sec.
+          this.patrolDirection = { x: Math.random()*2-1, y: Math.random()*2-1 };
+          this.stateTime = 0;
+        }
       }
-      if (minDist < 300 && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
+    }
+    
+    // Compute velocity based on state.
+    let vx = 0, vy = 0;
+    if (this.state === "dodge") {
+      // Normalize dodge vector.
+      let mag = Math.sqrt(dodgeVector.x*dodgeVector.x + dodgeVector.y*dodgeVector.y);
+      if (mag > 0) { vx = (dodgeVector.x / mag) * this.speed * 1.5; vy = (dodgeVector.y / mag) * this.speed * 1.5; }
+    } else if (this.state === "chase" && this.targetPlayer) {
+      let dx = this.targetPlayer.sprite.x - this.sprite.x;
+      let dy = this.targetPlayer.sprite.y - this.sprite.y;
+      let mag = Math.sqrt(dx*dx + dy*dy);
+      if (mag > 0) { vx = (dx / mag) * this.speed; vy = (dy / mag) * this.speed; }
+    } else if (this.state === "patrol") {
+      let mag = Math.sqrt(this.patrolDirection.x*this.patrolDirection.x + this.patrolDirection.y*this.patrolDirection.y);
+      if (mag > 0) { vx = (this.patrolDirection.x / mag) * this.speed; vy = (this.patrolDirection.y / mag) * this.speed; }
+    }
+    this.sprite.x += vx * deltaTime;
+    this.sprite.y += vy * deltaTime;
+    
+    // Attack (melee) if within range.
+    if (this.targetPlayer) {
+      let dx = this.targetPlayer.sprite.x - this.sprite.x;
+      let dy = this.targetPlayer.sprite.y - this.sprite.y;
+      let dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 300 && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
         this.currentBullets--;
-        let dirX = dx / mag, dirY = dy / mag;
-        // Enemy melee attack.
+        let dirX = dx / dist, dirY = dy / dist;
         this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "regular", { damage: this.damage, playerIndex: -1, lastFacing: { x: dirX, y: dirY } });
         this.lastAttackTime = time;
       }
     }
+    
     this.updateHealthBar();
     if (this.health <= 0) {
       this.sprite.destroy();
@@ -451,9 +507,9 @@ class Enemy {
   }
 }
 
-// =======================
-// Main Game Scene
-// =======================
+// ======================================================================
+// Main Scene (Game World)
+// ======================================================================
 class MainScene extends Phaser.Scene {
   constructor() {
     super('MainScene');
@@ -462,15 +518,15 @@ class MainScene extends Phaser.Scene {
   preload() {
     // Create a triangle texture for players.
     this.createTriangleTexture('player', 30, 30, 0x00aaff);
-    // Create a placeholder square for enemy.
+    // Create a square texture for enemies.
     this.createPlaceholderGraphics('enemy', 20, 20, 0xff00ff);
-    // (We no longer need projectile textures.)
+    // (Melee attacks use a temporary rectangle; no projectile textures needed.)
   }
   
   create() {
     this.cameras.main.setBackgroundColor(0x222222);
     
-    // Create circular arena as 13 pie zones.
+    // Create the circular arena divided into 13 pie slices.
     this.pieZones = [];
     let centerX = GAME_WIDTH / 2;
     let centerY = GAME_HEIGHT / 2;
@@ -485,10 +541,10 @@ class MainScene extends Phaser.Scene {
       this.pieZones.push(zone);
     }
     
-    // Create meleeAttacks group.
+    // Create a group for melee attacks.
     this.meleeAttacks = this.add.group();
     
-    // Create players (up to 4). Spawn each in the matching zone.
+    // Create players (up to 4). Spawn each in the zone that matches their god.
     this.players = [];
     for (let i = 0; i < 4; i++) {
       let playerGod = Phaser.Utils.Array.GetRandom(GODS).name;
@@ -516,7 +572,7 @@ class MainScene extends Phaser.Scene {
       this.players.push(player);
     }
     
-    // Create enemy NPCs.
+    // Create enemy NPCs (spawn randomly within the arena).
     this.enemies = [];
     for (let i = 0; i < 5; i++) {
       let angle = Phaser.Math.FloatBetween(0, 2 * Math.PI);
@@ -527,13 +583,12 @@ class MainScene extends Phaser.Scene {
       this.enemies.push(enemy);
     }
     
-    // Add help icon in the top right corner.
+    // Add a help icon in the upper-right corner.
     this.helpIcon = this.add.text(GAME_WIDTH - 30, 10, "?", { fontSize: '24px', fill: '#fff' });
     this.helpIcon.setInteractive();
     this.helpIcon.on('pointerdown', () => {
       this.scene.start('HelpScene', { previousScene: 'MainScene' });
     });
-    // Listen for "?" key press.
     this.input.keyboard.on('keydown', (event) => {
       if (event.key === '?') {
         this.scene.start('HelpScene', { previousScene: 'MainScene' });
@@ -555,6 +610,13 @@ class MainScene extends Phaser.Scene {
         }
       });
     });
+    
+    // Create a minimap camera showing the entire game world.
+    // For world 3072×2304, zoom factor ~200/3072 = 0.065.
+    this.minimap = this.cameras.add(10, 10, 200, 150).setZoom(0.065).setBackgroundColor(0x222222);
+    
+    // Create a HUD text object.
+    this.hudText = this.add.text(10, GAME_HEIGHT - 80, "", { fontSize: '20px', fill: '#fff' });
   }
   
   spawnMeleeAttack(x, y, attackType, shooter) {
@@ -579,7 +641,11 @@ class MainScene extends Phaser.Scene {
       attackY = y + shooter.lastFacing.y * offset;
     }
     let rotation = (attackType === "spin") ? 0 : Math.atan2(shooter.lastFacing.y, shooter.lastFacing.x);
-    let melee = new MeleeAttack(this, attackX, attackY, width, height, rotation, shooter.damage * damageMultiplier, shooter);
+    this.spawnMeleeAttackHitbox(attackX, attackY, width, height, rotation, shooter.damage * damageMultiplier, shooter);
+  }
+  
+  spawnMeleeAttackHitbox(x, y, width, height, rotation, damage, shooter) {
+    let melee = new MeleeAttack(this, x, y, width, height, rotation, damage, shooter);
     this.meleeAttacks.add(melee);
   }
   
@@ -587,13 +653,12 @@ class MainScene extends Phaser.Scene {
     // Update pie zones display.
     this.pieZones.forEach(zone => zone.updateDisplay(this.players));
     
-    // Update melee attacks.
+    // Update melee attacks and perform collision checks.
     this.meleeAttacks.getChildren().forEach(attack => {
       if (!attack.update(delta)) {
-        // Already destroyed.
+        // Hitbox expired.
       } else {
-        // Collision detection:
-        // If shooter is a player, check against enemies.
+        // If the shooter is a player, check collision with enemies.
         if (attack.owner.playerIndex !== undefined && attack.owner.playerIndex !== -1) {
           this.enemies.forEach(enemy => {
             if (Phaser.Geom.Intersects.RectangleToRectangle(attack.hitbox.getBounds(), enemy.sprite.getBounds())) {
@@ -602,7 +667,7 @@ class MainScene extends Phaser.Scene {
             }
           });
         } else {
-          // Shooter is an enemy; check against players.
+          // Shooter is an enemy; check collision with players.
           this.players.forEach(player => {
             if (Phaser.Geom.Intersects.RectangleToRectangle(attack.hitbox.getBounds(), player.sprite.getBounds())) {
               let dmg = attack.damage;
@@ -622,7 +687,7 @@ class MainScene extends Phaser.Scene {
       }
     });
     
-    // Update players and remove dead ones.
+    // Update players and remove those with 0 health.
     for (let i = this.players.length - 1; i >= 0; i--) {
       let player = this.players[i];
       player.update();
@@ -632,7 +697,7 @@ class MainScene extends Phaser.Scene {
       }
     }
     
-    // Update enemies and remove dead ones.
+    // Update enemies (with state-based AI) and remove dead ones.
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       let enemy = this.enemies[i];
       enemy.update(time, delta);
@@ -643,16 +708,19 @@ class MainScene extends Phaser.Scene {
       }
     }
     
-    // Check win condition: if only one unique god remains among living players.
+    // Update HUD.
+    let hudInfo = "Players Left: " + this.players.length + "\n";
+    this.players.forEach((player, idx) => {
+      hudInfo += "P" + idx + " (" + player.god + "): " + player.health + " HP, " + player.shield + " Shield\n";
+    });
+    this.hudText.setText(hudInfo);
+    
+    // Win condition: if only one unique god remains among players.
     let livingGods = new Set(this.players.map(p => p.god));
     if (this.players.length > 0 && livingGods.size === 1) {
       let winningGod = Array.from(livingGods)[0];
       this.scene.start('WinScene', { god: winningGod });
     }
-    
-    // Save progress (for debugging).
-    let progress = { players: this.players.map(p => ({ god: p.god, health: p.health, shield: p.shield, bullets: p.currentBullets })) };
-    localStorage.setItem('godlightProgress', JSON.stringify(progress));
   }
   
   createPlaceholderGraphics(key, width, height, color) {
@@ -706,9 +774,9 @@ class MainScene extends Phaser.Scene {
   }
 }
 
-// =======================
+// ======================================================================
 // Win Scene Definition
-// =======================
+// ======================================================================
 class WinScene extends Phaser.Scene {
   constructor() {
     super('WinScene');
@@ -732,9 +800,9 @@ class WinScene extends Phaser.Scene {
   }
 }
 
-// =======================
+// ======================================================================
 // Help Scene Definition
-// =======================
+// ======================================================================
 class HelpScene extends Phaser.Scene {
   constructor() {
     super('HelpScene');
@@ -791,9 +859,9 @@ Additional:
   }
 }
 
-// =======================
+// ======================================================================
 // Game Configuration and Initialization
-// =======================
+// ======================================================================
 const config = {
   type: Phaser.AUTO,
   width: GAME_WIDTH,
@@ -804,6 +872,15 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
+
+/*
+  Further improvements:
+  - Enhanced AI: Integrate a proper A* pathfinding algorithm and more robust state machines for enemy behavior.
+  - Visual & Audio: Replace placeholder art with polished sprites/animations, add particle effects, and richer soundtracks.
+  - Power-ups & Abilities: Introduce power-ups (extra shields, speed boosts) and unique special moves for each god.
+  - UI Improvements: Build a more comprehensive HUD with tooltips and in-game tutorials.
+  - Code Organization: Refactor code into modules/files and implement object pooling for melee hitboxes and enemies for performance.
+*/
 </script>
 </body>
 </html>
