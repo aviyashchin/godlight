@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GodLight! - Top-Down Shooter Prototype</title>
+  <style>
+    body { margin: 0; }
+    canvas { display: block; }
+  </style>
+  <!-- Include Phaser.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
+</head>
+<body>
+<script>
+// =======================
+// Global Configuration
+// =======================
+const GAME_WIDTH = 1024;
+const GAME_HEIGHT = 768;
+
+// List of gods and their boon descriptions
+const GODS = [
+  { name: "Zeus",      boon: "Lightning Rod – Continuously attracts enemy projectiles to you, dealing 25% more damage." },
+  { name: "Poseidon",  boon: "Unstable Tides – You randomly push away nearby allies every 8 seconds." },
+  { name: "Hades",     boon: "Soul Burden – Each defeated enemy slows your movement speed by 5% (stacks)." },
+  { name: "Athena",    boon: "Cursed Wisdom – Your attacks have a 30% chance to heal enemies instead of damaging them." },
+  { name: "Ares",      boon: "War's Toll – You take damage when dealing damage (15% of damage dealt)." },
+  { name: "Aphrodite", boon: "Heart's Discord – Your healing abilities randomly damage instead of heal." },
+  { name: "Apollo",    boon: "Blinding Pride – Your accuracy decreases by 5% for each successful hit (resets on miss)." },
+  { name: "Artemis",   boon: "Moon's Madness – Your attacks randomly target allies or enemies." },
+  { name: "Hephaestus",boon: "Forge's Flaw – Your weapons have a 20% chance to backfire and damage you." },
+  { name: "Hermes",    boon: "Chaotic Speed – Your movement direction changes randomly every 3 seconds." },
+  { name: "Dionysus",  boon: "Eternal Hangover – Your screen slowly spins clockwise, rotating faster with each kill." },
+  { name: "Demeter",   boon: "Withering Touch – Grass dies around you, slowing all allies in the dead zone." },
+  { name: "Hera",      boon: "Royal Tax – Your allies lose gold when near you." }
+];
+
+// Mapping of controller buttons (using indices from the Gamepad API)
+// Note: Actual mappings may vary by browser/controller.
+const BUTTONS = {
+  A: 0, // Sprint
+  B: 1, // Regular Attack
+  X: 2, // Long Range Attack
+  Y: 3  // Spin Attack
+};
+
+// =======================
+// Player Class Definition
+// =======================
+class Player {
+  /**
+   * @param {Phaser.Scene} scene - The scene this player belongs to.
+   * @param {number} x - Starting x position.
+   * @param {number} y - Starting y position.
+   * @param {number} playerIndex - Index to help differentiate players.
+   */
+  constructor(scene, x, y, playerIndex) {
+    this.scene = scene;
+    this.playerIndex = playerIndex;
+    // Randomly assign a god alignment to this player.
+    this.god = Phaser.Utils.Array.GetRandom(GODS).name;
+    this.health = 100;
+    this.ammo = 100;
+    this.speed = 200;
+    // Create a sprite using the generated "player" texture.
+    this.sprite = scene.add.sprite(x, y, 'player');
+    // Tint the sprite to visually distinguish players.
+    this.sprite.setTint(Phaser.Display.Color.GetColor(100 + playerIndex * 50, 100, 200));
+    // Display the player’s assigned god above the sprite.
+    this.godText = scene.add.text(x - 20, y - 40, this.god, { fontSize: '12px', fill: '#fff' });
+    
+    // Start with an idle animation (placeholder).
+    this.sprite.anims.play('idle');
+    
+    // To be assigned when a gamepad is connected.
+    this.gamepad = null;
+  }
+  
+  // Update method called every frame.
+  update() {
+    // Process gamepad input if assigned.
+    if (this.gamepad) {
+      // Read left joystick axes (assumes axes[0] is horizontal, axes[1] is vertical).
+      let axisH = (this.gamepad.axes.length > 0) ? this.gamepad.axes[0].getValue() : 0;
+      let axisV = (this.gamepad.axes.length > 1) ? this.gamepad.axes[1].getValue() : 0;
+      
+      // Calculate velocity based on axis input and player speed.
+      let velocityX = axisH * this.speed;
+      let velocityY = axisV * this.speed;
+      
+      // If A button (sprint) is pressed, increase speed.
+      if (this.gamepad.buttons[BUTTONS.A].pressed) {
+        velocityX *= 1.5;
+        velocityY *= 1.5;
+      }
+      
+      // Update the sprite's position (frame-rate adjusted).
+      this.sprite.x += velocityX * this.scene.game.loop.delta / 1000;
+      this.sprite.y += velocityY * this.scene.game.loop.delta / 1000;
+      
+      // Update the god text position to follow the sprite.
+      this.godText.x = this.sprite.x - 20;
+      this.godText.y = this.sprite.y - 40;
+      
+      // Check for attack button presses and trigger corresponding attacks.
+      if (Phaser.Input.Gamepad.Gamepad.BUTTON_DOWN(this.gamepad, BUTTONS.B)) {
+        this.regularAttack();
+      }
+      if (Phaser.Input.Gamepad.Gamepad.BUTTON_DOWN(this.gamepad, BUTTONS.X)) {
+        this.longRangeAttack();
+      }
+      if (Phaser.Input.Gamepad.Gamepad.BUTTON_DOWN(this.gamepad, BUTTONS.Y)) {
+        this.spinAttack();
+      }
+    }
+  }
+  
+  // Regular Attack: spawns a projectile.
+  regularAttack() {
+    this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'regular', this);
+  }
+  
+  // Long Range Attack: spawns a faster projectile.
+  longRangeAttack() {
+    this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'long', this);
+  }
+  
+  // Spin Attack: simulates an area-of-effect attack.
+  spinAttack() {
+    this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'spin', this);
+  }
+  
+  // Apply zone effect based on whether player's god aligns with the zone.
+  applyZoneEffect(zone) {
+    if (zone.god === this.god) {
+      // Boon: For now, simply tint the sprite green.
+      this.sprite.setTint(0x00ff00);
+    } else {
+      // Penalty: Tint the sprite red.
+      this.sprite.setTint(0xff0000);
+    }
+  }
+  
+  // Clear any zone effect by resetting the tint.
+  clearZoneEffect() {
+    this.sprite.setTint(Phaser.Display.Color.GetColor(100 + this.playerIndex * 50, 100, 200));
+  }
+}
+
+// =======================
+// Enemy Class Definition
+// =======================
+class Enemy {
+  /**
+   * @param {Phaser.Scene} scene - The scene this enemy belongs to.
+   * @param {number} x - Starting x position.
+   * @param {number} y - Starting y position.
+   */
+  constructor(scene, x, y) {
+    this.scene = scene;
+    this.sprite = scene.add.sprite(x, y, 'enemy');
+    this.health = 50;
+    // Set a random cooldown period between attacks (in milliseconds).
+    this.attackCooldown = Phaser.Math.Between(2000, 5000);
+    this.lastAttackTime = 0;
+  }
+  
+  // Update enemy behavior.
+  update(time, delta) {
+    // If enough time has passed, perform a telegraphed attack.
+    if (time - this.lastAttackTime > this.attackCooldown) {
+      this.telegraphedAttack(time);
+      this.lastAttackTime = time;
+      // Reset the cooldown for the next attack.
+      this.attackCooldown = Phaser.Math.Between(2000, 5000);
+    }
+  }
+  
+  // Perform an attack that is telegraphed visually.
+  telegraphedAttack(time) {
+    // Determine attack power (scales telegraph duration between 0.25 and 1.5 seconds).
+    let attackPower = Phaser.Math.FloatBetween(0.25, 1.5);
+    let telegraphDuration = Phaser.Math.Clamp(attackPower, 0.25, 1.5) * 1000;
+    
+    // Create a telegraph effect (a semi-transparent yellow rectangle) at the enemy’s position.
+    let telegraph = this.scene.add.rectangle(this.sprite.x, this.sprite.y, 50, 50, 0xffff00, 0.5);
+    
+    // After the telegraph duration, destroy the telegraph and execute the attack.
+    this.scene.time.delayedCall(telegraphDuration, () => {
+      telegraph.destroy();
+      this.scene.spawnEnemyProjectile(this.sprite.x, this.sprite.y, attackPower);
+    }, [], this);
+  }
+}
+
+// =======================
+// Zone Class Definition
+// =======================
+class Zone {
+  /**
+   * @param {Phaser.Scene} scene - The scene the zone belongs to.
+   * @param {number} x - X position of the zone.
+   * @param {number} y - Y position of the zone.
+   * @param {number} width - Zone width.
+   * @param {number} height - Zone height.
+   * @param {string} god - The god associated with this zone.
+   */
+  constructor(scene, x, y, width, height, god) {
+    this.scene = scene;
+    // Define the rectangular area of the zone.
+    this.rect = new Phaser.Geom.Rectangle(x, y, width, height);
+    this.god = god;
+    // Draw the zone's boundary using a graphics object.
+    this.graphics = scene.add.graphics();
+    this.graphics.lineStyle(2, 0xffffff, 1);
+    this.graphics.strokeRectShape(this.rect);
+    // Display the god's name in the top-left corner of the zone.
+    this.text = scene.add.text(x + 5, y + 5, god, { fontSize: '14px', fill: '#fff' });
+  }
+  
+  // Check if a point is inside this zone.
+  contains(x, y) {
+    return this.rect.contains(x, y);
+  }
+}
+
+// =======================
+// Main Game Scene
+// =======================
+class MainScene extends Phaser.Scene {
+  constructor() {
+    super('MainScene');
+  }
+  
+  preload() {
+    // Create placeholder textures for players, enemies, and projectiles.
+    this.createPlaceholderGraphics('player', 40, 40, 0x00aaff);
+    this.createPlaceholderGraphics('enemy', 30, 30, 0xff00ff);
+    this.createPlaceholderGraphics('projectile_regular', 10, 10, 0xffffff);
+    this.createPlaceholderGraphics('projectile_long', 8, 8, 0xffff00);
+    this.createPlaceholderGraphics('projectile_spin', 20, 20, 0x00ff00);
+    
+    // Audio assets can be loaded here if available.
+    // e.g., this.load.audio('bgMusic', 'assets/audio/battle.mp3');
+  }
+  
+  create() {
+    // Set a dark background color for the arena.
+    this.cameras.main.setBackgroundColor(0x222222);
+    
+    // -------------------------
+    // Create Arena Zones
+    // -------------------------
+    // For simplicity, arrange zones in a grid layout.
+    this.zones = [];
+    let numZones = GODS.length; // 13 zones based on our GODS array.
+    let cols = 4; // Number of columns in the grid.
+    let rows = Math.ceil(numZones / cols);
+    let zoneWidth = GAME_WIDTH / cols;
+    let zoneHeight = GAME_HEIGHT / rows;
+    let index = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (index < numZones) {
+          let x = c * zoneWidth;
+          let y = r * zoneHeight;
+          let zone = new Zone(this, x, y, zoneWidth, zoneHeight, GODS[index].name);
+          this.zones.push(zone);
+          index++;
+        }
+      }
+    }
+    
+    // -------------------------
+    // Create Players
+    // -------------------------
+    this.players = [];
+    // Create up to 4 players at random positions.
+    for (let i = 0; i < 4; i++) {
+      let x = Phaser.Math.Between(50, GAME_WIDTH - 50);
+      let y = Phaser.Math.Between(50, GAME_HEIGHT - 50);
+      let player = new Player(this, x, y, i);
+      this.players.push(player);
+    }
+    
+    // Listen for gamepad connections.
+    this.input.gamepad.once('connected', (pad) => {
+      console.log('Gamepad connected:', pad.id);
+      // Assign connected gamepads to players in order.
+      this.input.gamepad.gamepads.forEach((pad, idx) => {
+        if (this.players[idx]) {
+          this.players[idx].gamepad = pad;
+        }
+      });
+    });
+    
+    // -------------------------
+    // Create Projectile Groups
+    // -------------------------
+    this.projectiles = this.add.group();
+    this.enemyProjectiles = this.add.group();
+    
+    // -------------------------
+    // Create NPC Enemies
+    // -------------------------
+    this.enemies = [];
+    for (let i = 0; i < 5; i++) {
+      let x = Phaser.Math.Between(100, GAME_WIDTH - 100);
+      let y = Phaser.Math.Between(100, GAME_HEIGHT - 100);
+      let enemy = new Enemy(this, x, y);
+      this.enemies.push(enemy);
+    }
+    
+    // -------------------------
+    // (Optional) Start Background Music
+    // -------------------------
+    // let music = this.sound.add('bgMusic');
+    // music.play({ loop: true });
+  }
+  
+  update(time, delta) {
+    // Update each player.
+    this.players.forEach(player => {
+      player.update();
+      // Check which zone the player is in and apply the appropriate effect.
+      let inZone = false;
+      this.zones.forEach(zone => {
+        if (zone.contains(player.sprite.x, player.sprite.y)) {
+          player.applyZoneEffect(zone);
+          inZone = true;
+        }
+      });
+      if (!inZone) {
+        player.clearZoneEffect();
+      }
+    });
+    
+    // Update each enemy.
+    this.enemies.forEach(enemy => {
+      enemy.update(time, delta);
+    });
+    
+    // Update projectiles: move them and destroy if they leave the arena.
+    this.projectiles.getChildren().forEach(proj => {
+      proj.x += proj.velX * delta / 1000;
+      proj.y += proj.velY * delta / 1000;
+      if (proj.x < 0 || proj.x > GAME_WIDTH || proj.y < 0 || proj.y > GAME_HEIGHT) {
+        proj.destroy();
+      }
+    });
+    
+    this.enemyProjectiles.getChildren().forEach(proj => {
+      proj.x += proj.velX * delta / 1000;
+      proj.y += proj.velY * delta / 1000;
+      if (proj.x < 0 || proj.x > GAME_WIDTH || proj.y < 0 || proj.y > GAME_HEIGHT) {
+        proj.destroy();
+      }
+    });
+    
+    // -------------------------
+    // Save Progress Locally
+    // -------------------------
+    // For demonstration, we save each player's god, health, and ammo.
+    let progress = { players: this.players.map(p => ({ god: p.god, health: p.health, ammo: p.ammo })) };
+    localStorage.setItem('godlightProgress', JSON.stringify(progress));
+  }
+  
+  // -------------------------
+  // Helper: Create Placeholder Graphics
+  // -------------------------
+  createPlaceholderGraphics(key, width, height, color) {
+    let graphics = this.make.graphics({ x: 0, y: 0, add: false });
+    graphics.fillStyle(color, 1);
+    graphics.fillRect(0, 0, width, height);
+    graphics.generateTexture(key, width, height);
+    graphics.destroy();
+  }
+  
+  // -------------------------
+  // Helper: Spawn a Projectile from a Player
+  // -------------------------
+  spawnProjectile(x, y, type, player) {
+    let projKey = 'projectile_regular';
+    let speed = 300;
+    if (type === 'long') {
+      projKey = 'projectile_long';
+      speed = 400;
+    } else if (type === 'spin') {
+      projKey = 'projectile_spin';
+      speed = 200;
+    }
+    let projectile = this.add.sprite(x, y, projKey);
+    projectile.velX = speed;
+    projectile.velY = 0; // For simplicity, projectiles move to the right.
+    projectile.owner = player;
+    this.projectiles.add(projectile);
+  }
+  
+  // -------------------------
+  // Helper: Spawn an Enemy Projectile as Part of an Attack
+  // -------------------------
+  spawnEnemyProjectile(x, y, attackPower) {
+    let projectile = this.add.sprite(x, y, 'projectile_regular');
+    // Enemy projectiles move in a random direction.
+    let angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    let speed = 200 * attackPower;
+    projectile.velX = Math.cos(angle) * speed;
+    projectile.velY = Math.sin(angle) * speed;
+    this.enemyProjectiles.add(projectile);
+  }
+}
+
+// =======================
+// Game Configuration and Initialization
+// =======================
+const config = {
+  type: Phaser.AUTO,
+  width: GAME_WIDTH,
+  height: GAME_HEIGHT,
+  scene: [MainScene],
+  parent: 'phaser-example',
+  input: {
+    gamepad: true
+  }
+};
+
+// Create the Phaser game instance.
+const game = new Phaser.Game(config);
+</script>
+</body>
+</html>
