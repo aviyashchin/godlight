@@ -78,6 +78,21 @@ export default class Player {
     // Input setup
     this.gamepad = null;
     this.keys = null;
+
+    // Add gamepad check in constructor
+    this.scene.input.gamepad.on('connected', (pad) => {
+      if (pad.index === this.playerIndex) {
+        console.log(`Gamepad ${pad.index} connected`);
+        this.gamepad = pad;
+      }
+    });
+
+    this.scene.input.gamepad.on('disconnected', (pad) => {
+      if (pad.index === this.playerIndex) {
+        console.log(`Gamepad ${pad.index} disconnected`);
+        this.gamepad = null;
+      }
+    });
   }
 
   update() {
@@ -96,7 +111,54 @@ export default class Player {
     }
 
     // Input handling
-    if (!this.gamepad) {
+    if (this.gamepad) {
+      // Gamepad movement
+      const leftStick = this.gamepad.leftStick;
+      const deadzone = 0.2;
+      let vx = Math.abs(leftStick.x) > deadzone ? leftStick.x : 0;
+      let vy = Math.abs(leftStick.y) > deadzone ? leftStick.y : 0;
+
+      if (vx !== 0 || vy !== 0) {
+        const speed = this.gamepad.B ? this.speed * 1.5 : this.speed;
+        this.sprite.x += vx * speed * deltaTime;
+        this.sprite.y += vy * speed * deltaTime;
+        this.lastFacing.x = vx;
+        this.lastFacing.y = vy;
+      }
+
+      // Gamepad attacks
+      if (currentTime - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
+        if (this.gamepad.X && this.currentBullets > 0) {
+          this.scene.combatManager.spawnMeleeAttack(
+            this.sprite.x,
+            this.sprite.y,
+            "regular",
+            this
+          );
+          this.currentBullets--;
+          this.lastAttackTime = currentTime;
+        } else if (this.gamepad.Y && this.currentBullets > 0) {
+          this.scene.combatManager.spawnMeleeAttack(
+            this.sprite.x,
+            this.sprite.y,
+            "spin",
+            this
+          );
+          this.currentBullets--;
+          this.lastAttackTime = currentTime;
+        } else if (this.gamepad.A && this.currentBullets > 0) {
+          this.scene.combatManager.spawnProjectile(
+            this.sprite.x,
+            this.sprite.y,
+            this,
+            this.lastFacing.x,
+            this.lastFacing.y
+          );
+          this.currentBullets--;
+          this.lastAttackTime = currentTime;
+        }
+      }
+    } else {
       if (!this.keys) {
         if (this.playerIndex === 0) {
           this.keys = this.scene.input.keyboard.addKeys({
@@ -140,32 +202,15 @@ export default class Player {
 
       if (currentTime - this.lastAttackTime > this.attackCooldown) {
         if (this.keys.melee1.isDown && this.currentBullets > 0) {
-          this.scene.combatManager.spawnMeleeAttack(
-            this.sprite.x, 
-            this.sprite.y, 
-            "regular", 
-            this
-          );
-          this.currentBullets--;
+          this.meleeAttackRegular();
           this.lastAttackTime = currentTime;
-        } else if (this.keys.melee2.isDown && this.currentBullets > 0) {
-          this.scene.combatManager.spawnMeleeAttack(
-            this.sprite.x, 
-            this.sprite.y, 
-            "spin", 
-            this
-          );
-          this.currentBullets--;
+        }
+        if (this.keys.melee2.isDown && this.currentBullets > 0) {
+          this.meleeAttackSpin();
           this.lastAttackTime = currentTime;
-        } else if (this.keys.projectile.isDown && this.currentBullets > 0) {
-          this.scene.combatManager.spawnProjectile(
-            this.sprite.x, 
-            this.sprite.y, 
-            this, 
-            this.lastFacing.x, 
-            this.lastFacing.y
-          );
-          this.currentBullets--;
+        }
+        if (this.keys.projectile.isDown && this.currentBullets > 0) {
+          this.projectileAttack();
           this.lastAttackTime = currentTime;
         }
       }
@@ -213,5 +258,23 @@ export default class Player {
     this.nameText.destroy();
     this.bulletText.destroy();
     this.healthBar.destroy();
+  }
+
+  meleeAttackRegular() {
+    if (this.currentBullets <= 0) return;
+    this.currentBullets--;
+    this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "regular", this);
+  }
+
+  meleeAttackSpin() {
+    if (this.currentBullets <= 0) return;
+    this.currentBullets--;
+    this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "spin", this);
+  }
+
+  projectileAttack() {
+    if (this.currentBullets <= 0) return;
+    this.currentBullets--;
+    this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, this.lastFacing.x, this.lastFacing.y);
   }
 }
