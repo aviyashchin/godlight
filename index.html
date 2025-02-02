@@ -38,7 +38,7 @@
 <body>
 <div id="hudTooltip"></div>
 <script>
-// Helper functions for color adjustments
+// --- Helper functions for color adjustments ---
 function lightenColor(color, percent) {
   let r = (color >> 16) & 0xFF;
   let g = (color >> 8) & 0xFF;
@@ -58,7 +58,7 @@ function darkenColor(color, percent) {
   return (r << 16) + (g << 8) + b;
 }
 
-// Mapping of each god’s boon icon and text.
+// --- Mapping for boon icons and texts ---
 const GOD_ICONS = {
   Zeus: "⚡",
   Poseidon: "🌊",
@@ -90,9 +90,7 @@ const GOD_BOONS = {
   Hades: "Soul Burden"
 };
 
-/* ======================================================================
-   Global Configuration
-   ====================================================================== */
+// --- Global Configuration ---
 const GAME_WIDTH = 1536;
 const GAME_HEIGHT = 1152;
 const ARENA_CENTER = { x: GAME_WIDTH / 2, y: GAME_HEIGHT / 2 };
@@ -130,8 +128,9 @@ const GOD_CONFIG = {
   Hades:     { health: 160, damage: 24, shield: 35, bullets: 10, bulletReload: 1000, shieldReload: 5000, zoneColor: 0x8b008b }
 };
 
-// We'll generate dynamic polygon textures for non-Hades combatants and a circle for Hades.
-const GOD_SPRITES = {}; // Textures will be generated in preload.
+// We'll generate dynamic textures for combatants.
+// For non-Hades, a polygon texture; for Hades, a circular texture.
+const GOD_SPRITES = {}; // Filled in preload.
 
 // Helper: create a polygon texture.
 function createPolygonTexture(scene, key, sides, radius, color) {
@@ -139,7 +138,7 @@ function createPolygonTexture(scene, key, sides, radius, color) {
   let angleStep = (2 * Math.PI) / sides;
   let points = [];
   for (let i = 0; i < sides; i++) {
-    let angle = i * angleStep - Math.PI / 2; // start upward
+    let angle = i * angleStep - Math.PI/2; // Start upward.
     let x = radius * Math.cos(angle) + radius;
     let y = radius * Math.sin(angle) + radius;
     points.push(new Phaser.Geom.Point(x, y));
@@ -165,15 +164,8 @@ function createCircleTexture(scene, key, radius, color) {
   graphics.destroy();
 }
 
-// Mapping for boon icons and text is defined above.
-  
-const BUTTONS = {
-  A: 0,
-  B: 1,
-  X: 2,
-  Y: 3
-};
-
+// --- Constants for input ---
+const BUTTONS = { A: 0, B: 1, X: 2, Y: 3 };
 const PLAYER_SPEED = 100;
 const ENEMY_SPEED = 50;
 
@@ -194,21 +186,19 @@ class Pool {
 }
 
 /* ======================================================================
-   EASYSTAR SETUP (A* Pathfinding Stub)
+   EasyStar Setup (Stub)
    ====================================================================== */
 const easyStar = new EasyStar.js();
 const gridCols = 48, gridRows = 36;
 const grid = [];
 for (let y = 0; y < gridRows; y++) {
   const col = [];
-  for (let x = 0; x < gridCols; x++) {
-    col.push(0);
-  }
+  for (let x = 0; x < gridCols; x++) { col.push(0); }
   grid.push(col);
 }
 easyStar.setGrid(grid);
 easyStar.setAcceptableTiles([0]);
-// TODO: Populate obstacles and use easyStar.findPath() in enemy navigation
+// TODO: Add obstacles and use easyStar.findPath() in enemy AI
 
 /* ======================================================================
    ProjectileAttack Class (For Long-Range Attacks)
@@ -216,9 +206,7 @@ easyStar.setAcceptableTiles([0]);
 class ProjectileAttack {
   constructor(scene, x, y, texture, velX, velY, damage, owner) {
     this.scene = scene;
-    if (!owner.lastFacing) {
-      owner.lastFacing = { x: 1, y: 0 };
-    }
+    if (!owner.lastFacing) { owner.lastFacing = { x: 1, y: 0 }; }
     const offset = 30;
     x = x + owner.lastFacing.x * offset;
     y = y + owner.lastFacing.y * offset;
@@ -262,7 +250,7 @@ class PieZone {
     this.endAngle = endAngle;
     this.god = god;
     this.zoneColor = zoneColor;
-    this.defaultColor = 0x444444;
+    this.defaultColor = 0x222222; // Darker default background.
     this.graphics = scene.add.graphics();
     this.text = scene.add.text(0, 0, god, { fontFamily: 'monospace', fontSize: '14px', fill: '#fff' });
     this.updateDisplay([]);
@@ -281,7 +269,6 @@ class PieZone {
   updateDisplay(players) {
     this.graphics.clear();
     let active = players.some(player => player.god === this.god && this.contains(player.sprite.x, player.sprite.y));
-    // Use a gradient fill based on active state.
     if (active) {
       let light = lightenColor(this.zoneColor, 0.3);
       this.graphics.fillGradientStyle(light, this.zoneColor, this.zoneColor, light, 1);
@@ -343,7 +330,6 @@ class PowerUp {
   constructor(scene, x, y, type) {
     this.scene = scene;
     this.type = type;
-    // Use the projectile texture as a placeholder.
     this.sprite = scene.add.sprite(x, y, "projectile");
     this.sprite.setScale(0.5);
     this.lifetime = 10000;
@@ -502,9 +488,9 @@ class Player {
       let vy = axisV * this.speed;
       if (this.gamepad.buttons[BUTTONS.A].pressed) { vx *= 1.5; vy *= 1.5; }
       if (Math.abs(axisH) > 0.1 || Math.abs(axisV) > 0.1) {
-        let mag = Math.sqrt(axisH * axisH + axisV * axisV);
-        this.lastFacing.x = axisH / mag;
-        this.lastFacing.y = axisV / mag;
+        let mag = Math.sqrt(axisH*axisH+axisV*axisV);
+        this.lastFacing.x = axisH/mag;
+        this.lastFacing.y = axisV/mag;
       }
       this.sprite.x += vx * deltaTime;
       this.sprite.y += vy * deltaTime;
@@ -523,13 +509,13 @@ class Player {
       }
     }
     
-    // Clamp within arena.
-    let dx = this.sprite.x - this.scene.arenaCenter.x;
-    let dy = this.sprite.y - this.scene.arenaCenter.y;
-    let dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist > this.scene.arenaRadius) {
-      this.sprite.x = this.scene.arenaCenter.x + (dx / dist) * this.scene.arenaRadius;
-      this.sprite.y = this.scene.arenaCenter.y + (dy / dist) * this.scene.arenaRadius;
+    // Clamp position within the arena.
+    let dx = this.sprite.x - ARENA_CENTER.x;
+    let dy = this.sprite.y - ARENA_CENTER.y;
+    let dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist > ARENA_RADIUS) {
+      this.sprite.x = ARENA_CENTER.x + (dx/dist) * ARENA_RADIUS;
+      this.sprite.y = ARENA_CENTER.y + (dy/dist) * ARENA_RADIUS;
     }
     
     this.sprite.rotation = Math.atan2(this.lastFacing.y, this.lastFacing.x) + Math.PI/2;
@@ -631,11 +617,10 @@ class Enemy {
     for (let target of allTargets) {
       let dx = target.sprite.x - this.sprite.x;
       let dy = target.sprite.y - this.sprite.y;
-      let dist = Math.sqrt(dx*dx + dy*dy);
+      let dist = Math.sqrt(dx*dx+dy*dy);
       if (dist < minDist) { minDist = dist; nearest = target; }
     }
     
-    // Determine state.
     if (this.health < this.maxHealth * 0.3) {
       this.state = "retreat";
     } else if (this.scene.meleeAttacks.some(a => Phaser.Geom.Intersects.RectangleToRectangle(a.getBounds(), this.sprite.getBounds()))) {
@@ -648,7 +633,6 @@ class Enemy {
       this.state = "patrol";
     }
     
-    // Act based on state.
     if (this.state === "home" && this.homeZone) {
       let dx = this.homeZone.centerX - this.sprite.x;
       let dy = this.homeZone.centerY - this.sprite.y;
@@ -693,12 +677,12 @@ class Enemy {
     }
     
     // Clamp within arena.
-    let dx = this.sprite.x - this.scene.arenaCenter.x;
-    let dy = this.sprite.y - this.scene.arenaCenter.y;
+    let dx = this.sprite.x - ARENA_CENTER.x;
+    let dy = this.sprite.y - ARENA_CENTER.y;
     let dist = Math.sqrt(dx*dx+dy*dy);
-    if (dist > this.scene.arenaRadius) {
-      this.sprite.x = this.scene.arenaCenter.x + (dx/dist) * this.scene.arenaRadius;
-      this.sprite.y = this.scene.arenaCenter.y + (dy/dist) * this.scene.arenaRadius;
+    if (dist > ARENA_RADIUS) {
+      this.sprite.x = ARENA_CENTER.x + (dx/dist) * ARENA_RADIUS;
+      this.sprite.y = ARENA_CENTER.y + (dy/dist) * ARENA_RADIUS;
     }
     
     this.updateHealthBar();
@@ -738,10 +722,10 @@ class MainScene extends Phaser.Scene {
   }
   
   preload() {
-    // Generate polygon textures for non-Hades (3 to 14 sides).
+    // Generate polygon textures for non-Hades (sides 3 to 14).
     for (let sides = 3; sides <= 14; sides++) {
       let key = "poly_" + sides;
-      // Use a base white texture (tint will be applied later).
+      // Base texture in white; tint will be applied later.
       createPolygonTexture(this, key, sides, 32, 0xffffff);
     }
     // Generate a circular texture for Hades.
@@ -755,12 +739,12 @@ class MainScene extends Phaser.Scene {
   }
   
   create() {
-    this.cameras.main.setBackgroundColor(0x222222);
-    // Define arena center and radius.
-    this.arenaCenter = { x: GAME_WIDTH / 2, y: GAME_HEIGHT / 2 };
+    // Set a much darker background.
+    this.cameras.main.setBackgroundColor(0x111111);
+    this.arenaCenter = ARENA_CENTER;
     this.arenaRadius = ARENA_RADIUS;
     
-    // Create the GodLight title and fix it to the camera.
+    // Create the GodLight title (fixed to camera).
     let asciiArt =
 `   ____       _     _     _     _ _ 
   / ___| ___ | |__ (_)___| |__ (_) |
@@ -805,7 +789,7 @@ class MainScene extends Phaser.Scene {
     this.powerUps = [];
     
     // Spawn exactly 13 combatants (one per god).
-    // First 4 in the GODS array are player-controlled; the rest are AI.
+    // First 4 gods are player-controlled; the rest are AI.
     this.players = [];
     this.enemies = [];
     let nonHadesIndex = 0;
@@ -870,12 +854,15 @@ class MainScene extends Phaser.Scene {
       }
     }
     
-    // Spawn a power-up every 15 seconds.
+    // Spawn power-ups INSIDE the arena.
     this.time.addEvent({
       delay: 15000,
       callback: () => {
-        let puX = Phaser.Math.Between(50, GAME_WIDTH - 50);
-        let puY = Phaser.Math.Between(50, GAME_HEIGHT - 50);
+        // Generate random angle and radius within the arena.
+        let angle = Phaser.Math.FloatBetween(0, 2*Math.PI);
+        let r = Math.sqrt(Math.random()) * this.arenaRadius;
+        let puX = ARENA_CENTER.x + r * Math.cos(angle);
+        let puY = ARENA_CENTER.y + r * Math.sin(angle);
         let powerUp = new PowerUp(this, puX, puY, "shield");
         this.powerUps.push(powerUp);
       },
@@ -917,9 +904,6 @@ class MainScene extends Phaser.Scene {
         }
       });
     });
-    
-    // Create a minimap camera in the upper-left corner.
-    this.minimap = this.cameras.add(10, 10, 200, 150).setZoom(200 / GAME_WIDTH).setBackgroundColor(0x222222);
   }
   
   spawnMeleeAttack(x, y, attackType, shooter) {
@@ -1007,10 +991,11 @@ class MainScene extends Phaser.Scene {
   }
   
   update(time, delta) {
+    // Update pie zones with current player positions.
     this.pieZones.forEach(zone => zone.updateDisplay(this.players));
     this.hadesCircle.setPosition(ARENA_CENTER.x, ARENA_CENTER.y);
     
-    // Update melee attacks to hit all overlapping targets.
+    // Update melee attacks (apply damage to all overlapping targets).
     for (let i = this.meleeAttacks.length - 1; i >= 0; i--) {
       let attack = this.meleeAttacks[i];
       if (!attack.update(delta)) {
@@ -1044,15 +1029,18 @@ class MainScene extends Phaser.Scene {
     this.updateProjectileAttacks(delta);
     this.updatePowerUps(delta);
     
-    this.players.forEach((player, i) => {
+    // Iterate backward over players.
+    for (let i = this.players.length - 1; i >= 0; i--) {
+      let player = this.players[i];
       player.update();
       if (player.health <= 0) {
         player.destroy();
         this.players.splice(i, 1);
       }
-    });
-    
-    this.enemies.forEach((enemy, i) => {
+    }
+    // Iterate backward over enemies.
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      let enemy = this.enemies[i];
       enemy.update(time, delta);
       if (enemy.health <= 0) {
         enemy.sprite.destroy();
@@ -1060,7 +1048,7 @@ class MainScene extends Phaser.Scene {
         enemy.healthBar.destroy();
         this.enemies.splice(i, 1);
       }
-    });
+    }
     
     // Update HUD panel.
     let hudInfo = "Combatants Left:\n";
@@ -1073,10 +1061,11 @@ class MainScene extends Phaser.Scene {
     this.hudText.setText(hudInfo);
     
     // Win condition: if only one unique god remains.
-    let uniqueGods = new Set(allChars.map(ch => ch.god));
-    if (allChars.length > 0 && uniqueGods.size === 1) {
-      let winningGod = Array.from(uniqueGods)[0];
-      this.scene.start('WinScene', { god: winningGod });
+    if (allChars.length > 0) {
+      let uniqueGods = new Set(allChars.map(ch => ch.god));
+      if (uniqueGods.size === 1) {
+        this.scene.start('WinScene', { god: Array.from(uniqueGods)[0] });
+      }
     }
   }
   
@@ -1113,7 +1102,7 @@ class WinScene extends Phaser.Scene {
     this.winningGod = data.god;
   }
   create() {
-    this.cameras.main.setBackgroundColor(0x222222);
+    this.cameras.main.setBackgroundColor(0x111111);
     this.add.text(GAME_WIDTH/2 - 200, GAME_HEIGHT/2 - 100, "The " + this.winningGod + " has won!", { fontSize: '48px', fill: '#fff' });
     let btn = document.createElement("button");
     btn.id = "restartBtn";
