@@ -4,35 +4,24 @@ import { PLAYER_SPEED } from '../helpers.js';
 export default class CurseManager {
   constructor(scene, pieZones) {
     this.scene = scene;
-    this.pieZones = pieZones;
+    // Ensure pieZones is an array; if not, default to an empty array.
+    this.pieZones = Array.isArray(pieZones) ? pieZones : [];
   }
 
   applyCurse(player) {
     let applied = false;
+    // Iterate over the zones
     for (let zone of this.pieZones) {
       if (zone.contains(player.sprite.x, player.sprite.y)) {
-        switch(zone.god) {
-          case "Zeus":
+        // Apply the curse logic based on the zone's god.
+        switch (zone.god) {
             // 0.5% chance per frame to strike lightning (5 damage)
+          case "Zeus":
+            // Example: lightning strike
             if (Phaser.Math.Between(1, 1000) <= 5) {
               player.health = Math.max(0, player.health - 5);
               player.sprite.setTint(0xffff00);
-              // Play lightning sound effect if loaded
-              if (this.scene.sound.get('lightningSound')) {
-                this.scene.sound.play('lightningSound');
-              }
-              // Create a brief particle burst for lightning
-              let particles = this.scene.add.particles('projectile');
-              let emitter = particles.createEmitter({
-                x: player.sprite.x,
-                y: player.sprite.y,
-                speed: { min: -100, max: 100 },
-                scale: { start: 1, end: 0 },
-                lifespan: 300,
-                blendMode: 'ADD'
-              });
-              this.scene.time.delayedCall(300, () => particles.destroy());
-              this.scene.time.delayedCall(200, () => player.sprite.clearTint());
+              this.scene.time.delayedCall(200, () => { player.sprite.clearTint(); });
             }
             break;
           case "Poseidon":
@@ -73,7 +62,7 @@ export default class CurseManager {
       }
     }
     if (!applied) {
-      // Reset to defaults if not in any cursed zone.
+      // Reset to defaults if not in any zone.
       player.speed = PLAYER_SPEED;
       player.turningPenalty = false;
     }

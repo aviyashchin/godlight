@@ -50,7 +50,6 @@ export default class MainScene extends Phaser.Scene {
   
   create() {
     this.cameras.main.setBackgroundColor(0x111111);
-    this.curseManager = new CurseManager(this, this.pieZones);
 
     ARENA_CENTER.x = GAME_WIDTH / 2;
     ARENA_CENTER.y = GAME_HEIGHT / 2;
@@ -84,11 +83,13 @@ export default class MainScene extends Phaser.Scene {
     // Create central Hades realm and pie zones.
     this.hadesCircle = this.add.circle(ARENA_CENTER.x, ARENA_CENTER.y, 75, GOD_CONFIG["Hades"].zoneColor, 0.5);
     this.pieZones = [];
+    this.curseManager = new CurseManager(this, this.pieZones);
+    console.log("Pie zones:", this.pieZones);
     let godsForZones = GODS.filter(g => g.name !== "Hades");
     const numZones = godsForZones.length;
     for (let i = 0; i < numZones; i++) {
-      let startAngle = i * (2*Math.PI/numZones);
-      let endAngle = (i+1) * (2*Math.PI/numZones);
+      let startAngle = i * (2 * Math.PI / numZones);
+      let endAngle = (i + 1) * (2 * Math.PI / numZones);
       let god = godsForZones[i].name;
       let zoneColor = GOD_CONFIG[god] ? GOD_CONFIG[god].zoneColor : 0xffffff;
       let zone = new PieZone(this, ARENA_CENTER.x, ARENA_CENTER.y, ARENA_RADIUS, startAngle, endAngle, god, zoneColor);
