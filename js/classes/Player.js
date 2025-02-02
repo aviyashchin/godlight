@@ -32,17 +32,14 @@ class SprintState extends State {
 }
 
 export default class Player {
-  constructor(scene, x, y, playerIndex, shapeSides) {
+  constructor(scene, x, y, index, shapeSides) {
     this.scene = scene;
-    this.playerIndex = playerIndex;
+    this.playerIndex = index;
     this.shapeSides = shapeSides;
-    this.initializeComponents(x, y);
-    this.initializeStateMachine();
-  }
-
-  initializeComponents(x, y) {
-    this.sprite = this.scene.add.sprite(x, y, `poly_${this.shapeSides}`);
+    this.sprite = scene.add.sprite(x, y, `poly_${shapeSides}`);
     this.sprite.setScale(0.5);
+    
+    // Initialize basic properties
     this.speed = GAME_CONFIG.player.BASE_SPEED;
     this.health = GAME_CONFIG.player.MAX_HEALTH;
     this.shield = GAME_CONFIG.player.MAX_SHIELD;
@@ -52,16 +49,20 @@ export default class Player {
     this.lastAttackTime = 0;
     this.attackCooldown = GAME_CONFIG.combat.COOLDOWNS.MELEE;
     
-    // HUD elements
-    this.nameText = this.scene.add.text(x - 20, y - 70, `P${this.playerIndex}`, { 
+    // Initialize HUD elements
+    this.nameText = scene.add.text(x - 20, y - 70, `P${this.playerIndex}`, { 
       fontSize: '12px', 
       fill: '#fff' 
     });
-    this.bulletText = this.scene.add.text(x - 20, y - 55, `Ammo: ${this.currentBullets}`, { 
+    this.bulletText = scene.add.text(x - 20, y - 55, `Ammo: ${this.currentBullets}`, { 
       fontSize: '12px', 
       fill: '#fff' 
     });
-    this.healthBar = this.scene.add.graphics();
+    this.healthBar = scene.add.graphics();
+    
+    // Initialize state machine
+    this.initializeStateMachine();
+    this.setupControls();
   }
 
   initializeStateMachine() {
