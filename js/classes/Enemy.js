@@ -1,150 +1,124 @@
 // js/classes/Enemy.js
 import { ENEMY_SPEED, ARENA_CENTER, ARENA_RADIUS } from '../helpers.js';
 import { GODS, GOD_CONFIG } from '../helpers.js';
+import { GOD_CONFIG } from '../config/gameConfig.js';
 
 export default class Enemy {
-  constructor(scene, x, y, enemyIndex, shapeSides) {
+  constructor(scene, x, y, god) {
     this.scene = scene;
-    this.enemyIndex = enemyIndex;
-    let availableGods = GODS.filter(g => g.name !== "Hades");
-    this.god = Phaser.Utils.Array.GetRandom(availableGods).name;
-    let cfg = GOD_CONFIG[this.god] || { health: 100, damage: 10, shield: 20, bullets: 10, bulletReload: 1000, shieldReload: 5000 };
-    this.maxHealth = cfg.health;
-    this.health = cfg.health;
-    this.damage = cfg.damage;
-    this.maxShield = cfg.shield;
-    this.shield = cfg.shield;
-    this.maxBullets = cfg.bullets;
-    this.currentBullets = cfg.bullets;
-    this.reloadRate = cfg.bulletReload;
-    this.shieldReloadRate = cfg.shieldReload;
-    this.lastReloadTime = 0;
-    this.lastShieldReloadTime = 0;
-    this.speed = ENEMY_SPEED;
-    this.attackCooldown = 2000;
-    this.lastAttackTime = 0;
-    this.attackRange = 200;
-    this.homeZone = this.scene.pieZones.find(z => z.god === this.god);
-    this.state = "patrol";
-    this.stateTime = 0;
-    this.patrolDirection = { x: Math.random()*2-1, y: Math.random()*2-1 };
-    if (this.god === "Hades") {
-      this.sprite = scene.add.sprite(x, y, "circle_hades");
-    } else {
-      this.sprite = scene.add.sprite(x, y, "poly_" + shapeSides);
-    }
+    this.god = god;
+    this.sprite = scene.add.sprite(x, y, god === "Hades" ? "circle_hades" : "poly_3");
     this.sprite.setScale(0.5);
-    this.sprite.setTint(GOD_CONFIG[this.god].zoneColor);
-    this.nameText = scene.add.text(x - 10, y - 30, "E" + enemyIndex + ": " + this.god, { fontSize: '12px', fill: '#fff' });
+    this.sprite.setTint(GOD_CONFIG[god].zoneColor);
+    
+    this.lastFacing = { x: 1, y: 0 };
+    this.speed = 100;
+    this.state = "chase";
+    this.stateTime = 0;
+    this.lastAttackTime = 0;
+    this.attackCooldown = 2000;
+    this.attackRange = 200;
+    this.lastReloadTime = 0;
+    
+    // Initialize nameText and healthBar
+    this.nameText = scene.add.text(x - 20, y - 30, "E: " + this.god, { fontSize: '12px', fill: '#fff' });
     this.healthBar = scene.add.graphics();
   }
-  
+
   update(time, delta) {
-    const deltaTime = delta / 1000;
-    this.stateTime += delta;
+    // Update position tracking
+    this.nameText.setPosition(this.sprite.x - 20, this.sprite.y - 30);
+    this.updateHealthBar();
+
+    // Bullet reloading
     if (time - this.lastReloadTime > this.reloadRate && this.currentBullets < this.maxBullets) {
       this.currentBullets++;
       this.lastReloadTime = time;
     }
+
+    // Find nearest target
+    const allTargets = [...this.scene.players, ...this.scene.enemies]
+      .filter(target => target !== this);
     
-    // Determine nearest target.
-    let nearest = null, minDist = Infinity;
-    let allTargets = this.scene.players.concat(this.scene.enemies.filter(e => e !== this));
-    for (let target of allTargets) {
-      let dx = target.sprite.x - this.sprite.x;
-      let dy = target.sprite.y - this.sprite.y;
-      let dist = Math.sqrt(dx*dx+dy*dy);
-      if (dist < minDist) { minDist = dist; nearest = target; }
-    }
+    let nearestTarget = null;
+    let shortestDistance = Infinity;
     
-    // New defensive state: if health falls below 20%, enemy retreats defensively.
-    if (this.health < this.maxHealth * 0.2) {
-      this.state = "defensive";
-    }
-    
-    if (this.state === "defensive") {
-      if (nearest) {
-        let dx = this.sprite.x - nearest.sprite.x;
-        let dy = this.sprite.y - nearest.sprite.y;
-        let mag = Math.sqrt(dx*dx+dy*dy);
-        if (mag > 0) {
-          this.sprite.x += (dx/mag) * this.speed * deltaTime;
-          this.sprite.y += (dy/mag) * this.speed * deltaTime;
-        }
+    allTargets.forEach(target => {
+      const distance = Phaser.Math.Distance.Between(
+        this.sprite.x, this.sprite.y,
+        target.sprite.x, target.sprite.y
+      );
+      if (distance < shortestDistance) {
+        shortestDistance = distance;
+        nearestTarget = target;
       }
-    } else if (this.state === "home" && this.homeZone) {
-      let dx = this.homeZone.centerX - this.sprite.x;
-      let dy = this.homeZone.centerY - this.sprite.y;
-      let mag = Math.sqrt(dx*dx+dy*dy);
+    });
+
+    // Update facing direction and movement
+    if (nearestTarget) {
+      const dirX = nearestTarget.sprite.x - this.sprite.x;
+      const dirY = nearestTarget.sprite.y - this.sprite.y;
+      const mag = Math.sqrt(dirX * dirX + dirY * dirY);
+      
       if (mag > 0) {
-        this.sprite.x += (dx/mag) * this.speed * deltaTime;
-        this.sprite.y += (dy/mag) * this.speed * deltaTime;
-      }
-    } else if (this.state === "patrol") {
-      if (this.stateTime > 2000) {
-        this.patrolDirection = { x: Math.random()*2-1, y: Math.random()*2-1 };
-        this.stateTime = 0;
-      }
-      this.sprite.x += this.patrolDirection.x * this.speed * deltaTime;
-      this.sprite.y += this.patrolDirection.y * this.speed * deltaTime;
-    } else if (this.state === "chase") {
-      if (nearest) {
-        let dx = nearest.sprite.x - this.sprite.x;
-        let dy = nearest.sprite.y - this.sprite.y;
-        let mag = Math.sqrt(dx*dx+dy*dy);
-        if (mag > 0) {
-          this.sprite.x += (dx/mag) * this.speed * deltaTime;
-          this.sprite.y += (dy/mag) * this.speed * deltaTime;
+        this.lastFacing.x = dirX / mag;
+        this.lastFacing.y = dirY / mag;
+        
+        // Move if not in attack range
+        if (mag > this.attackRange) {
+          this.sprite.x += (this.lastFacing.x * this.speed * delta) / 1000;
+          this.sprite.y += (this.lastFacing.y * this.speed * delta) / 1000;
         }
       }
-      if (minDist < this.attackRange && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
-        this.currentBullets--;
-        let dx = nearest.sprite.x - this.sprite.x;
-        let dy = nearest.sprite.y - this.sprite.y;
-        let mag = Math.sqrt(dx*dx+dy*dy);
-        let dirX = dx/mag, dirY = dy/mag;
+
+      // Attack if in range
+      if (shortestDistance < this.attackRange && 
+          time > this.lastAttackTime + this.attackCooldown && 
+          this.currentBullets > 0) {
+        
         if (Math.random() < 0.7) {
-          this.scene.combatManager.spawnProjectile(this.sprite.x, this.sprite.y, this, dirX, dirY);
+          this.scene.combatManager.spawnProjectile(
+            this.sprite.x, this.sprite.y,
+            this, this.lastFacing.x, this.lastFacing.y
+          );
         } else {
-          this.scene.combatManager.spawnMeleeAttack(this.sprite.x, this.sprite.y, Math.random() < 0.3 ? "spin" : "regular", this);
+          this.scene.combatManager.spawnMeleeAttack(
+            this.sprite.x, this.sprite.y,
+            Math.random() < 0.3 ? "spin" : "regular",
+            this
+          );
         }
+        
+        this.currentBullets--;
         this.lastAttackTime = time;
       }
     }
-    
-    // Clamp enemy within arena.
-    let dxClamp = this.sprite.x - ARENA_CENTER.x;
-    let dyClamp = this.sprite.y - ARENA_CENTER.y;
-    let distClamp = Math.sqrt(dxClamp*dxClamp+dyClamp*dyClamp);
-    if (distClamp > ARENA_RADIUS) {
-      this.sprite.x = ARENA_CENTER.x + (dxClamp/distClamp) * ARENA_RADIUS;
-      this.sprite.y = ARENA_CENTER.y + (dyClamp/distClamp) * ARENA_RADIUS;
-    }
-    
-    this.updateHealthBar();
-    this.nameText.setPosition(this.sprite.x - 10, this.sprite.y - 30);
-    if (this.health <= 0) {
-      this.sprite.destroy();
-      this.nameText.destroy();
-      this.healthBar.destroy();
-      this.scene.enemies = this.scene.enemies.filter(e => e !== this);
-    }
   }
-  
+
   updateHealthBar() {
     this.healthBar.clear();
-    const barWidth = 30, barHeight = 5;
-    let healthPercent = Phaser.Math.Clamp(this.health/this.maxHealth, 0, 1);
-    this.healthBar.fillStyle(0xff0000);
-    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 40, barWidth, barHeight);
-    this.healthBar.fillStyle(0x00ff00);
-    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 40, barWidth * healthPercent, barHeight);
+    const width = 40;
+    const height = 6;
+    const x = this.sprite.x - width/2;
+    const y = this.sprite.y - 40;
+    
+    // Background
+    this.healthBar.fillStyle(0x000000, 0.5);
+    this.healthBar.fillRect(x, y, width, height);
+    
+    // Health
+    const healthWidth = Math.max(0, (this.health / this.maxHealth) * width);
+    this.healthBar.fillStyle(0x00ff00, 1);
+    this.healthBar.fillRect(x, y, healthWidth, height);
+    
+    // Shield
     if (this.shield > 0) {
-      this.healthBar.lineStyle(4, 0x0000ff, 1);
-      this.healthBar.strokeCircle(this.sprite.x, this.sprite.y, 30);
+      const shieldWidth = Math.max(0, (this.shield / this.maxShield) * width);
+      this.healthBar.fillStyle(0x00ffff, 1);
+      this.healthBar.fillRect(x, y - 8, shieldWidth, height);
     }
   }
-  
+
   destroy() {
     this.sprite.destroy();
     this.nameText.destroy();

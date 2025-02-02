@@ -5,16 +5,22 @@ export default class MeleeAttack {
       this.scene = scene;
       this.owner = owner;
       this.type = type;
+      this.active = true;
       
       const color = owner.god ? GOD_CONFIG[owner.god].zoneColor : 0xffffff;
       
       if (type === "spin") {
-        this.hitbox = scene.add.circle(x, y, 60, color, 0.3);
+        this.hitbox = scene.add.circle(x, y, 60);
+        this.hitbox.setStrokeStyle(2, color, 0.8);
         this.lifetime = 1000;
         this.rotationSpeed = 720; // degrees per second
       } else {
-        this.hitbox = scene.add.rectangle(x, y, 80, 40, color, 0.3);
+        this.hitbox = scene.add.rectangle(x, y, 80, 40);
+        this.hitbox.setStrokeStyle(2, color, 0.8);
         this.lifetime = 200;
+        if (owner.lastFacing) {
+          this.hitbox.rotation = Math.atan2(owner.lastFacing.y, owner.lastFacing.x);
+        }
       }
       
       this.damage = owner.damage * (type === "spin" ? 0.7 : 1.2);
@@ -25,7 +31,7 @@ export default class MeleeAttack {
       const particles = this.scene.add.particles('projectile');
       const color = this.owner.god ? GOD_CONFIG[this.owner.god].zoneColor : 0xffffff;
       
-      particles.createEmitter({
+      const emitter = particles.createEmitter({
         x: this.hitbox.x,
         y: this.hitbox.y,
         speed: { min: -50, max: 50 },
@@ -62,6 +68,11 @@ export default class MeleeAttack {
 
     destroy() {
       this.hitbox.destroy();
+      this.active = false;
+    }
+
+    isActive() {
+      return this.active;
     }
   }
   
