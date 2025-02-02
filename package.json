@@ -1,0 +1,19 @@
+{
+    "name": "godlight",
+    "version": "1.0.0",
+    "description": "GodLight - A competitive multiplayer brawler featuring the gods of Mount Olympus.",
+    "main": "index.html",
+    "scripts": {
+      "start": "live-server --port=8080"
+    },
+    "author": "Aesop Yashchin",
+    "license": "MIT",
+    "dependencies": {
+      "phaser": "^3.55.2",
+      "easystarjs": "^0.4.4"
+    },
+    "devDependencies": {
+      "live-server": "^1.2.1"
+    }
+  }
+  
