@@ -15,9 +15,12 @@
 // =======================
 // Global Configuration
 // =======================
+
+// Game dimensions.
 const GAME_WIDTH = 1024;
 const GAME_HEIGHT = 768;
 
+// List of gods (for display).
 const GODS = [
   { name: "Zeus",      boon: "Lightning Rod – Continuously attracts enemy projectiles to you, dealing 25% more damage." },
   { name: "Poseidon",  boon: "Unstable Tides – You randomly push away nearby allies every 8 seconds." },
@@ -34,12 +37,29 @@ const GODS = [
   { name: "Hera",      boon: "Royal Tax – Your allies lose gold when near you." }
 ];
 
-// Standard Xbox controller button indices (adjust if necessary)
+// God-specific configuration for player stats.
+const GOD_CONFIG = {
+  Zeus:      { health: 120, damage: 15, shield: 30, bullets: 12, bulletReload: 1000, shieldReload: 5000 },
+  Poseidon:  { health: 130, damage: 12, shield: 35, bullets: 14, bulletReload: 900,  shieldReload: 4500 },
+  Hades:     { health: 110, damage: 18, shield: 20, bullets: 10, bulletReload: 1100, shieldReload: 5500 },
+  Athena:    { health: 100, damage: 10, shield: 40, bullets: 15, bulletReload: 800,  shieldReload: 4000 },
+  Ares:      { health: 140, damage: 20, shield: 15, bullets: 8,  bulletReload: 1200, shieldReload: 6000 },
+  Aphrodite: { health: 90,  damage: 9,  shield: 45, bullets: 16, bulletReload: 700,  shieldReload: 3500 },
+  Apollo:    { health: 100, damage: 14, shield: 30, bullets: 12, bulletReload: 1000, shieldReload: 5000 },
+  Artemis:   { health: 95,  damage: 13, shield: 25, bullets: 12, bulletReload: 950,  shieldReload: 5000 },
+  Hephaestus:{ health: 150, damage: 17, shield: 10, bullets: 10, bulletReload: 1300, shieldReload: 6500 },
+  Hermes:    { health: 100, damage: 12, shield: 30, bullets: 14, bulletReload: 850,  shieldReload: 5000 },
+  Dionysus:  { health: 110, damage: 11, shield: 35, bullets: 12, bulletReload: 1000, shieldReload: 5000 },
+  Demeter:   { health: 120, damage: 10, shield: 40, bullets: 15, bulletReload: 900,  shieldReload: 4500 },
+  Hera:      { health: 130, damage: 12, shield: 50, bullets: 16, bulletReload: 800,  shieldReload: 4000 }
+};
+
+// Standard Xbox controller button indices.
 const BUTTONS = {
-  A: 0, // Sprint boost for movement
-  B: 1, // Regular Attack
-  X: 2, // Long Range Attack
-  Y: 3  // Spin Attack
+  A: 0, // Sprint boost for movement.
+  B: 1, // Regular Attack.
+  X: 2, // Long Range Attack.
+  Y: 3  // Spin Attack.
 };
 
 // =======================
@@ -49,35 +69,43 @@ class Player {
   constructor(scene, x, y, playerIndex) {
     this.scene = scene;
     this.playerIndex = playerIndex;
-    // Randomly assign a god alignment.
+    // Randomly assign a god.
     this.god = Phaser.Utils.Array.GetRandom(GODS).name;
-    // Health configuration.
-    this.maxHealth = 100;
-    this.health = 100;
+    
+    // Load stats from GOD_CONFIG (with defaults if missing).
+    let cfg = GOD_CONFIG[this.god] || { health: 100, damage: 10, shield: 20, bullets: 10, bulletReload: 1000, shieldReload: 5000 };
+    this.maxHealth = cfg.health;
+    this.health = cfg.health;
+    this.damage = cfg.damage;
+    this.maxShield = cfg.shield;
+    this.shield = cfg.shield;
+    this.maxBullets = cfg.bullets;
+    this.currentBullets = cfg.bullets;
+    this.reloadRate = cfg.bulletReload;
+    this.shieldReloadRate = cfg.shieldReload;
+    this.lastReloadTime = 0;
+    this.lastShieldReloadTime = 0;
+    
     this.speed = 200;
-    // Create sprite and tint it.
+    // Create player sprite as a triangle (see createTriangleTexture in MainScene).
     this.sprite = scene.add.sprite(x, y, 'player');
+    // The texture 'player' is a triangle; tint it to distinguish players.
     this.sprite.setTint(Phaser.Display.Color.GetColor(100 + playerIndex * 50, 100, 200));
-    // Display god name above the sprite.
-    this.godText = scene.add.text(x - 20, y - 40, this.god, { fontSize: '12px', fill: '#fff' });
-    // Display bullet count above the sprite.
-    this.bulletText = scene.add.text(x - 20, y - 60, '', { fontSize: '12px', fill: '#fff' });
-    // Create a health bar graphics object.
+    
+    // Display god name above sprite.
+    this.godText = scene.add.text(x - 20, y - 50, this.god, { fontSize: '12px', fill: '#fff' });
+    // Display bullet count above sprite.
+    this.bulletText = scene.add.text(x - 20, y - 70, '', { fontSize: '12px', fill: '#fff' });
+    // Create a graphics object for health/shield bars.
     this.healthBar = scene.add.graphics();
     
     // Input references.
     this.gamepad = null;
     this.keys = null;
     
-    // Attack properties.
+    // Attack cooldown.
     this.lastAttackTime = 0;
     this.attackCooldown = 500; // ms
-    
-    // Bullet (ammo) properties.
-    this.maxBullets = 10;
-    this.currentBullets = this.maxBullets;
-    this.reloadRate = 1000; // ms per bullet
-    this.lastReloadTime = 0;
     
     // Last movement direction (default facing right).
     this.lastFacing = { x: 1, y: 0 };
@@ -92,14 +120,20 @@ class Player {
       this.currentBullets++;
       this.lastReloadTime = currentTime;
     }
+    // --- Auto-Reload Shields ---
+    if (currentTime - this.lastShieldReloadTime > this.shieldReloadRate && this.shield < this.maxShield) {
+      this.shield++;
+      this.lastShieldReloadTime = currentTime;
+    }
+    
     // Update bullet count text.
     this.bulletText.setText("Bullets: " + this.currentBullets);
     this.bulletText.x = this.sprite.x - 20;
-    this.bulletText.y = this.sprite.y - 60;
+    this.bulletText.y = this.sprite.y - 70;
     
     // --- Input Handling ---
     if (!this.gamepad) {
-      // Keyboard fallback with unique keys per player.
+      // Keyboard fallback: assign unique keys based on playerIndex.
       if (!this.keys) {
         if (this.playerIndex === 0) {
           this.keys = this.scene.input.keyboard.addKeys({
@@ -147,7 +181,7 @@ class Player {
           });
         }
       }
-      // Movement via keyboard.
+      // Movement.
       let velocityX = 0, velocityY = 0;
       if (this.keys.left.isDown) { velocityX = -this.speed; }
       else if (this.keys.right.isDown) { velocityX = this.speed; }
@@ -165,19 +199,17 @@ class Player {
       }
       this.sprite.x += velocityX * deltaTime;
       this.sprite.y += velocityY * deltaTime;
-      this.godText.x = this.sprite.x - 20;
-      this.godText.y = this.sprite.y - 40;
       
       // Attack via keyboard.
-      if (this.keys.attack1.isDown && (currentTime - this.lastAttackTime > this.attackCooldown)) {
+      if (this.keys.attack1.isDown && (currentTime - this.lastAttackTime > this.attackCooldown) && this.currentBullets > 0) {
         this.regularAttack();
         this.lastAttackTime = currentTime;
       }
-      if (this.keys.attack2.isDown && (currentTime - this.lastAttackTime > this.attackCooldown)) {
+      if (this.keys.attack2.isDown && (currentTime - this.lastAttackTime > this.attackCooldown) && this.currentBullets > 0) {
         this.longRangeAttack();
         this.lastAttackTime = currentTime;
       }
-      if (this.keys.attack3.isDown && (currentTime - this.lastAttackTime > this.attackCooldown)) {
+      if (this.keys.attack3.isDown && (currentTime - this.lastAttackTime > this.attackCooldown) && this.currentBullets > 0) {
         this.spinAttack();
         this.lastAttackTime = currentTime;
       }
@@ -200,10 +232,8 @@ class Player {
       }
       this.sprite.x += velocityX * deltaTime;
       this.sprite.y += velocityY * deltaTime;
-      this.godText.x = this.sprite.x - 20;
-      this.godText.y = this.sprite.y - 40;
       
-      // Attack via gamepad buttons (only if bullets are available).
+      // Attack via gamepad buttons (if bullets available).
       if (currentTime - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
         if (this.gamepad.buttons[BUTTONS.B].pressed) {
           this.regularAttack();
@@ -218,11 +248,18 @@ class Player {
       }
     }
     
-    // Update health bar.
+    // Rotate the sprite so the triangle faces lastFacing.
+    this.sprite.rotation = Math.atan2(this.lastFacing.y, this.lastFacing.x) + Math.PI/2;
+    
+    // Update text positions.
+    this.godText.x = this.sprite.x - 20;
+    this.godText.y = this.sprite.y - 50;
+    
+    // Update health and shield bars.
     this.updateHealthBar();
   }
   
-  // Fire a regular attack if bullets remain.
+  // Regular Attack.
   regularAttack() {
     if (this.currentBullets <= 0) {
       console.log(`Player ${this.playerIndex} out of bullets!`);
@@ -233,7 +270,7 @@ class Player {
     this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'regular', this);
   }
   
-  // Fire a long-range attack.
+  // Long Range Attack.
   longRangeAttack() {
     if (this.currentBullets <= 0) {
       console.log(`Player ${this.playerIndex} out of bullets!`);
@@ -244,7 +281,7 @@ class Player {
     this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'long', this);
   }
   
-  // Fire a spin attack.
+  // Spin Attack.
   spinAttack() {
     if (this.currentBullets <= 0) {
       console.log(`Player ${this.playerIndex} out of bullets!`);
@@ -255,21 +292,25 @@ class Player {
     this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'spin', this);
   }
   
-  // Update the health bar graphics above the character.
+  // Update health and shield bars.
   updateHealthBar() {
     this.healthBar.clear();
-    const barWidth = 40;
-    const barHeight = 6;
+    const barWidth = 40, barHeight = 6;
+    // Health bar (red background, green foreground).
     let healthPercent = this.health / this.maxHealth;
-    // Background (red)
     this.healthBar.fillStyle(0xff0000);
-    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 50, barWidth, barHeight);
-    // Health (green)
+    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 70, barWidth, barHeight);
     this.healthBar.fillStyle(0x00ff00);
-    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 50, barWidth * healthPercent, barHeight);
+    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 70, barWidth * healthPercent, barHeight);
+    
+    // Shield bar (blue) below the health bar.
+    let shieldPercent = this.shield / this.maxShield;
+    this.healthBar.fillStyle(0x0000ff);
+    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 62, barWidth * shieldPercent, barHeight);
   }
   
   applyZoneEffect(zone) {
+    // Simple tint change based on zone.
     if (zone.god === this.god) {
       this.sprite.setTint(0x00ff00);
     } else {
@@ -341,7 +382,9 @@ class MainScene extends Phaser.Scene {
   }
   
   preload() {
-    this.createPlaceholderGraphics('player', 40, 40, 0x00aaff);
+    // For the player, create a triangle texture instead of a square.
+    this.createTriangleTexture('player', 40, 40, 0x00aaff);
+    // Other placeholder textures.
     this.createPlaceholderGraphics('enemy', 30, 30, 0xff00ff);
     this.createPlaceholderGraphics('projectile_regular', 10, 10, 0xffffff);
     this.createPlaceholderGraphics('projectile_long', 8, 8, 0xffff00);
@@ -437,7 +480,7 @@ class MainScene extends Phaser.Scene {
       enemy.update(time, delta);
     });
     
-    // Update projectiles.
+    // Update projectiles positions.
     this.projectiles.getChildren().forEach(proj => {
       proj.x += proj.velX * delta / 1000;
       proj.y += proj.velY * delta / 1000;
@@ -454,11 +497,52 @@ class MainScene extends Phaser.Scene {
       }
     });
     
-    // Save player progress.
-    let progress = { players: this.players.map(p => ({ god: p.god, health: p.health, ammo: p.ammo })) };
+    // --- Collision Detection ---
+    // Check player projectiles against players.
+    this.projectiles.getChildren().forEach(proj => {
+      this.players.forEach(player => {
+        if (proj.owner !== player && Phaser.Geom.Intersects.RectangleToRectangle(proj.getBounds(), player.sprite.getBounds())) {
+          let dmg = proj.owner ? proj.owner.damage : 10;
+          // Apply damage: reduce shield first, then health.
+          if (player.shield > 0) {
+            let remainder = dmg - player.shield;
+            player.shield = Math.max(0, player.shield - dmg);
+            if (remainder > 0) {
+              player.health -= remainder;
+            }
+          } else {
+            player.health -= dmg;
+          }
+          proj.destroy();
+        }
+      });
+    });
+    
+    // Check enemy projectiles against players.
+    this.enemyProjectiles.getChildren().forEach(proj => {
+      this.players.forEach(player => {
+        if (Phaser.Geom.Intersects.RectangleToRectangle(proj.getBounds(), player.sprite.getBounds())) {
+          let dmg = 10; // fixed damage for enemy projectiles.
+          if (player.shield > 0) {
+            let remainder = dmg - player.shield;
+            player.shield = Math.max(0, player.shield - dmg);
+            if (remainder > 0) {
+              player.health -= remainder;
+            }
+          } else {
+            player.health -= dmg;
+          }
+          proj.destroy();
+        }
+      });
+    });
+    
+    // Save progress (for demonstration).
+    let progress = { players: this.players.map(p => ({ god: p.god, health: p.health, shield: p.shield, bullets: p.currentBullets })) };
     localStorage.setItem('godlightProgress', JSON.stringify(progress));
   }
   
+  // Create a square texture (for enemy, bullets, etc.).
   createPlaceholderGraphics(key, width, height, color) {
     let graphics = this.make.graphics({ x: 0, y: 0, add: false });
     graphics.fillStyle(color, 1);
@@ -467,6 +551,21 @@ class MainScene extends Phaser.Scene {
     graphics.destroy();
   }
   
+  // Create a triangle texture (for player characters).
+  createTriangleTexture(key, width, height, color) {
+    let graphics = this.make.graphics({ x: 0, y: 0, add: false });
+    graphics.fillStyle(color, 1);
+    graphics.beginPath();
+    graphics.moveTo(width / 2, 0);         // Tip (top center)
+    graphics.lineTo(0, height);              // Bottom left
+    graphics.lineTo(width, height);          // Bottom right
+    graphics.closePath();
+    graphics.fillPath();
+    graphics.generateTexture(key, width, height);
+    graphics.destroy();
+  }
+  
+  // Spawn a projectile from a player.
   spawnProjectile(x, y, type, player) {
     console.log(`Spawning ${type} projectile for player ${player.playerIndex} at (${x}, ${y})`);
     let projKey = 'projectile_regular';
@@ -480,7 +579,7 @@ class MainScene extends Phaser.Scene {
     }
     let projectile = this.add.sprite(x, y, projKey);
     
-    // Determine firing direction from right joystick or use lastFacing.
+    // Determine firing direction: if right joystick is neutral, use player's lastFacing.
     let attackDirX = 0, attackDirY = 0;
     if (player.gamepad && player.gamepad.axes.length >= 4) {
       attackDirX = player.gamepad.axes[2].getValue();
@@ -490,7 +589,7 @@ class MainScene extends Phaser.Scene {
       attackDirX = player.lastFacing.x;
       attackDirY = player.lastFacing.y;
     } else {
-      let mag = Math.sqrt(attackDirX * attackDirX + attackDirY * attackDirY);
+      let mag = Math.sqrt(attackDirX*attackDirX + attackDirY*attackDirY);
       attackDirX /= mag;
       attackDirY /= mag;
     }
@@ -500,6 +599,7 @@ class MainScene extends Phaser.Scene {
     this.projectiles.add(projectile);
   }
   
+  // Spawn an enemy projectile.
   spawnEnemyProjectile(x, y, attackPower) {
     let projectile = this.add.sprite(x, y, 'projectile_regular');
     let angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
