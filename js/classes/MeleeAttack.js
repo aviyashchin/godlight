@@ -1,43 +1,67 @@
+import { GOD_CONFIG } from '../config/gameConfig.js';
+
 export default class MeleeAttack {
     constructor(scene, x, y, type, owner) {
       this.scene = scene;
       this.owner = owner;
       this.type = type;
       
-      // Different sizes and effects for regular vs spin
+      const color = owner.god ? GOD_CONFIG[owner.god].zoneColor : 0xffffff;
+      
       if (type === "spin") {
-        this.sprite = scene.add.circle(x, y, 60, owner.god ? GOD_CONFIG[owner.god].zoneColor : 0xffffff);
+        this.hitbox = scene.add.circle(x, y, 60, color, 0.3);
         this.lifetime = 1000;
         this.rotationSpeed = 720; // degrees per second
       } else {
-        this.sprite = scene.add.rectangle(x, y, 80, 40, owner.god ? GOD_CONFIG[owner.god].zoneColor : 0xffffff);
+        this.hitbox = scene.add.rectangle(x, y, 80, 40, color, 0.3);
         this.lifetime = 200;
       }
       
-      this.sprite.setAlpha(0.5);
       this.damage = owner.damage * (type === "spin" ? 0.7 : 1.2);
-      this.createdTime = scene.time.now;
+      this.emitParticles();
     }
-    update(delta) {
-      const age = this.scene.time.now - this.createdTime;
+
+    emitParticles() {
+      const particles = this.scene.add.particles('projectile');
+      const color = this.owner.god ? GOD_CONFIG[this.owner.god].zoneColor : 0xffffff;
       
+      particles.createEmitter({
+        x: this.hitbox.x,
+        y: this.hitbox.y,
+        speed: { min: -50, max: 50 },
+        scale: { start: 0.5, end: 0 },
+        lifespan: 300,
+        blendMode: 'ADD',
+        tint: color,
+        quantity: this.type === "spin" ? 20 : 10
+      });
+
+      this.scene.time.delayedCall(300, () => { 
+        particles.destroy(); 
+      });
+    }
+
+    update(delta) {
       if (this.type === "spin") {
-        this.sprite.rotation += (this.rotationSpeed * delta) / 1000;
-        this.sprite.x = this.owner.sprite.x;
-        this.sprite.y = this.owner.sprite.y;
+        this.hitbox.rotation += (this.rotationSpeed * delta) / 1000;
+        this.hitbox.x = this.owner.sprite.x;
+        this.hitbox.y = this.owner.sprite.y;
       }
       
-      // Fade out effect
-      this.sprite.setAlpha(0.5 * (1 - age / this.lifetime));
-      
-      if (age >= this.lifetime) {
+      this.lifetime -= delta;
+      if (this.lifetime <= 0) {
         this.destroy();
         return false;
       }
       return true;
     }
+
+    getBounds() {
+      return this.hitbox.getBounds();
+    }
+
     destroy() {
-      this.sprite.destroy();
+      this.hitbox.destroy();
     }
   }
   
