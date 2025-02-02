@@ -79,7 +79,15 @@ export default class Player {
     this.gamepad = null;
     this.keys = null;
 
-    // Add gamepad check in constructor
+    // Define button mappings
+    this.BUTTONS = {
+      A: 0,
+      B: 1,
+      X: 2,
+      Y: 3
+    };
+
+    // Gamepad setup
     this.scene.input.gamepad.on('connected', (pad) => {
       if (pad.index === this.playerIndex) {
         console.log(`Gamepad ${pad.index} connected`);
@@ -119,7 +127,7 @@ export default class Player {
       let vy = Math.abs(leftStick.y) > deadzone ? leftStick.y : 0;
 
       if (vx !== 0 || vy !== 0) {
-        const speed = this.gamepad.B ? this.speed * 1.5 : this.speed;
+        const speed = this.gamepad.buttons[this.BUTTONS.A].pressed ? this.speed * 1.5 : this.speed;
         this.sprite.x += vx * speed * deltaTime;
         this.sprite.y += vy * speed * deltaTime;
         this.lastFacing.x = vx;
@@ -128,13 +136,13 @@ export default class Player {
 
       // Gamepad attacks
       if (currentTime - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
-        if (this.gamepad.buttons[BUTTONS.B].pressed) {
+        if (this.gamepad.buttons[this.BUTTONS.B].pressed) {
           this.meleeAttackRegular();
           this.lastAttackTime = currentTime;
-        } else if (this.gamepad.buttons[BUTTONS.X].pressed) {
+        } else if (this.gamepad.buttons[this.BUTTONS.X].pressed) {
           this.meleeAttackSpin();
           this.lastAttackTime = currentTime;
-        } else if (this.gamepad.buttons[BUTTONS.Y].pressed) {
+        } else if (this.gamepad.buttons[this.BUTTONS.Y].pressed) {
           this.projectileAttack();
           this.lastAttackTime = currentTime;
         }
