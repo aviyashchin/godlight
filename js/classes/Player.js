@@ -252,13 +252,29 @@ export default class Player {
   meleeAttackRegular() {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
-    this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "regular", this);
+    this.scene.spawnMeleeAttackHitbox(
+      this.sprite.x, 
+      this.sprite.y, 
+      80,  // width
+      40,  // height
+      Math.atan2(this.lastFacing.y, this.lastFacing.x), // rotation
+      this.damage * 1.2, // damage
+      this // shooter
+    );
   }
 
   meleeAttackSpin() {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
-    this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "spin", this);
+    this.scene.spawnMeleeAttackHitbox(
+      this.sprite.x, 
+      this.sprite.y, 
+      120, // diameter (width/height for circle)
+      120, 
+      0,   // rotation for spin
+      this.damage * 0.7, // damage
+      this // shooter
+    );
   }
 
   projectileAttack() {
