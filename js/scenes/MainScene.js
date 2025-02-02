@@ -50,6 +50,8 @@ export default class MainScene extends Phaser.Scene {
   
   create() {
     this.cameras.main.setBackgroundColor(0x111111);
+    this.curseManager = new CurseManager(this, this.pieZones);
+
     ARENA_CENTER.x = GAME_WIDTH / 2;
     ARENA_CENTER.y = GAME_HEIGHT / 2;
     
@@ -241,7 +243,10 @@ export default class MainScene extends Phaser.Scene {
     // Update zones.
     this.pieZones.forEach(zone => zone.updateDisplay(this.players));
     this.hadesCircle.setPosition(ARENA_CENTER.x, ARENA_CENTER.y);
-    
+    if (this.curseManager) {
+      this.curseManager.applyCurse(player);
+    }
+
     // Update melee attacks.
     for (let i = this.meleeAttacks.length - 1; i >= 0; i--) {
       let attack = this.meleeAttacks[i];
