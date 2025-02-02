@@ -6,7 +6,7 @@
   <style>
     body { margin: 0; }
     canvas { display: block; }
-    /* Style for the help overlay button */
+    /* Help screen close button style */
     #closeHelpBtn {
       position: absolute;
       top: 20px;
@@ -19,7 +19,7 @@
       cursor: pointer;
     }
   </style>
-  <!-- Include Phaser.js from CDN -->
+  <!-- Include Phaser.js -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
 </head>
 <body>
@@ -30,9 +30,9 @@
 const GAME_WIDTH = 1024;
 const GAME_HEIGHT = 768;
 
-// List of gods (order matters for zone assignment).
+// List of gods (order matters for zone assignment)
 const GODS = [
-  { name: "Zeus",      boon: "Lightning Rod – Continuously attracts enemy projectiles to you, dealing 25% more damage." },
+  { name: "Zeus",      boon: "Lightning Rod – Continuously attracts enemy melee hits to you, dealing 25% more damage." },
   { name: "Poseidon",  boon: "Unstable Tides – You randomly push away nearby allies every 8 seconds." },
   { name: "Hades",     boon: "Soul Burden – Each defeated enemy slows your movement speed by 5% (stacks)." },
   { name: "Athena",    boon: "Cursed Wisdom – Your attacks have a 30% chance to heal enemies instead of damaging them." },
@@ -40,14 +40,14 @@ const GODS = [
   { name: "Aphrodite", boon: "Heart's Discord – Your healing abilities randomly damage instead of heal." },
   { name: "Apollo",    boon: "Blinding Pride – Your accuracy decreases by 5% for each successful hit (resets on miss)." },
   { name: "Artemis",   boon: "Moon's Madness – Your attacks randomly target allies or enemies." },
-  { name: "Hephaestus",boon: "Forge's Flaw – Your weapons have a 20% chance to backfire and damage you." },
+  { name: "Hephaestus",boon: "Forge's Flaw – Your melee attacks have a 20% chance to backfire and damage you." },
   { name: "Hermes",    boon: "Chaotic Speed – Your movement direction changes randomly every 3 seconds." },
   { name: "Dionysus",  boon: "Eternal Hangover – Your screen slowly spins clockwise, rotating faster with each kill." },
   { name: "Demeter",   boon: "Withering Touch – Grass dies around you, slowing all allies in the dead zone." },
   { name: "Hera",      boon: "Royal Tax – Your allies lose gold when near you." }
-];
+};
 
-// God-specific configuration.
+// God-specific configuration (stats, zone colors, etc.)
 const GOD_CONFIG = {
   Zeus:      { health: 120, damage: 15, shield: 30, bullets: 12, bulletReload: 1000, shieldReload: 5000, zoneColor: 0xffcc00 },
   Poseidon:  { health: 130, damage: 12, shield: 35, bullets: 14, bulletReload: 900,  shieldReload: 4500, zoneColor: 0x00ccff },
@@ -67,13 +67,17 @@ const GOD_CONFIG = {
 // Xbox controller button indices.
 const BUTTONS = {
   A: 0, // Sprint boost.
-  B: 1, // Regular Attack.
-  X: 2, // Long Range Attack.
-  Y: 3  // Spin Attack.
+  B: 1, // Attack (melee).
+  X: 2, // Alternate melee attack.
+  Y: 3  // Spin melee attack.
 };
 
+// Make the game 50% slower: adjust speeds.
+const PLAYER_SPEED = 100; // was 200
+const ENEMY_SPEED = 50;   // was 100
+
 // =======================
-// PieZone Class (Circular Arena Slice)
+// PieZone Class (for circular arena slices)
 // =======================
 class PieZone {
   constructor(scene, centerX, centerY, radius, startAngle, endAngle, god, zoneColor) {
@@ -124,13 +128,45 @@ class PieZone {
 }
 
 // =======================
+// MeleeAttack Class (hitbox for melee attacks)
+// =======================
+class MeleeAttack {
+  constructor(scene, x, y, width, height, rotation, damage, owner) {
+    this.scene = scene;
+    // Create a rectangle to represent the melee hitbox.
+    this.hitbox = scene.add.rectangle(x, y, width, height, 0xff0000, 0.5);
+    this.hitbox.rotation = rotation;
+    this.damage = damage;
+    this.owner = owner;
+    this.lifetime = 200; // in ms
+  }
+  
+  update(delta) {
+    this.lifetime -= delta;
+    if (this.lifetime <= 0) {
+      this.destroy();
+      return false;
+    }
+    return true;
+  }
+  
+  getBounds() {
+    return this.hitbox.getBounds();
+  }
+  
+  destroy() {
+    this.hitbox.destroy();
+  }
+}
+
+// =======================
 // Player Class Definition
 // =======================
 class Player {
   constructor(scene, x, y, playerIndex) {
     this.scene = scene;
     this.playerIndex = playerIndex;
-    // Assign a god – later spawned in the matching zone.
+    // Assign a god (later we spawn in the matching zone).
     this.god = Phaser.Utils.Array.GetRandom(GODS).name;
     let cfg = GOD_CONFIG[this.god] || { health: 100, damage: 10, shield: 20, bullets: 10, bulletReload: 1000, shieldReload: 5000 };
     this.maxHealth = cfg.health;
@@ -145,7 +181,7 @@ class Player {
     this.lastReloadTime = 0;
     this.lastShieldReloadTime = 0;
     
-    this.speed = 200;
+    this.speed = PLAYER_SPEED;
     // Create a smaller triangle (30x30) for the player.
     this.sprite = scene.add.sprite(x, y, 'player');
     this.sprite.setScale(0.75);
@@ -162,7 +198,8 @@ class Player {
   }
   
   update() {
-    const deltaTime = this.scene.game.loop.delta / 1000;
+    const delta = this.scene.game.loop.delta;
+    const deltaTime = delta / 1000;
     const currentTime = this.scene.time.now;
     
     // Auto-reload bullets.
@@ -178,7 +215,7 @@ class Player {
     this.bulletText.setText("Bullets: " + this.currentBullets);
     this.bulletText.setPosition(this.sprite.x - 20, this.sprite.y - 60);
     
-    // Input Handling (Keyboard fallback or Gamepad).
+    // Input handling: keyboard fallback or gamepad.
     if (!this.gamepad) {
       if (!this.keys) {
         // Unique keyboard controls per player.
@@ -289,22 +326,23 @@ class Player {
     this.updateHealthBar();
   }
   
+  // Melee attack variants now call the scene's spawnMeleeAttack.
   regularAttack() {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
-    this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'regular', this);
+    this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "regular", this);
   }
   
   longRangeAttack() {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
-    this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'long', this);
+    this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "long", this);
   }
   
   spinAttack() {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
-    this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'spin', this);
+    this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "spin", this);
   }
   
   updateHealthBar() {
@@ -353,7 +391,7 @@ class Enemy {
     this.currentBullets = 5;
     this.reloadRate = 1500;
     this.lastReloadTime = 0;
-    this.speed = 100;
+    this.speed = ENEMY_SPEED;
     this.attackCooldown = 1000;
     this.lastAttackTime = 0;
     // Create a smaller square enemy.
@@ -389,8 +427,8 @@ class Enemy {
       if (minDist < 300 && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
         this.currentBullets--;
         let dirX = dx / mag, dirY = dy / mag;
-        // Fire projectile aimed at the nearest player.
-        this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'regular', { damage: this.damage, playerIndex: -1, lastFacing: { x: dirX, y: dirY } });
+        // Enemy melee attack.
+        this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "regular", { damage: this.damage, playerIndex: -1, lastFacing: { x: dirX, y: dirY } });
         this.lastAttackTime = time;
       }
     }
@@ -422,11 +460,11 @@ class MainScene extends Phaser.Scene {
   }
   
   preload() {
+    // Create a triangle texture for players.
     this.createTriangleTexture('player', 30, 30, 0x00aaff);
+    // Create a placeholder square for enemy.
     this.createPlaceholderGraphics('enemy', 20, 20, 0xff00ff);
-    this.createPlaceholderGraphics('projectile_regular', 10, 10, 0xffffff);
-    this.createPlaceholderGraphics('projectile_long', 8, 8, 0xffff00);
-    this.createPlaceholderGraphics('projectile_spin', 20, 20, 0x00ff00);
+    // (We no longer need projectile textures.)
   }
   
   create() {
@@ -446,6 +484,9 @@ class MainScene extends Phaser.Scene {
       let zone = new PieZone(this, centerX, centerY, arenaRadius, startAngle, endAngle, god, zoneColor);
       this.pieZones.push(zone);
     }
+    
+    // Create meleeAttacks group.
+    this.meleeAttacks = this.add.group();
     
     // Create players (up to 4). Spawn each in the matching zone.
     this.players = [];
@@ -486,7 +527,7 @@ class MainScene extends Phaser.Scene {
       this.enemies.push(enemy);
     }
     
-    // Add help icon in top right corner.
+    // Add help icon in the top right corner.
     this.helpIcon = this.add.text(GAME_WIDTH - 30, 10, "?", { fontSize: '24px', fill: '#fff' });
     this.helpIcon.setInteractive();
     this.helpIcon.on('pointerdown', () => {
@@ -514,14 +555,72 @@ class MainScene extends Phaser.Scene {
         }
       });
     });
-    
-    this.projectiles = this.add.group();
-    this.enemyProjectiles = this.add.group();
+  }
+  
+  spawnMeleeAttack(x, y, attackType, shooter) {
+    // Determine parameters based on attack type.
+    let offset = 0, width = 0, height = 0, damageMultiplier = 1;
+    if (attackType === "regular") {
+      offset = 20;
+      width = 30; height = 20;
+      damageMultiplier = 1;
+    } else if (attackType === "long") {
+      offset = 30;
+      width = 40; height = 20;
+      damageMultiplier = 0.8;
+    } else if (attackType === "spin") {
+      offset = 0;
+      width = 50; height = 50;
+      damageMultiplier = 0.7;
+    }
+    let attackX = x, attackY = y;
+    if (offset > 0) {
+      attackX = x + shooter.lastFacing.x * offset;
+      attackY = y + shooter.lastFacing.y * offset;
+    }
+    let rotation = (attackType === "spin") ? 0 : Math.atan2(shooter.lastFacing.y, shooter.lastFacing.x);
+    let melee = new MeleeAttack(this, attackX, attackY, width, height, rotation, shooter.damage * damageMultiplier, shooter);
+    this.meleeAttacks.add(melee);
   }
   
   update(time, delta) {
-    // Update zones.
+    // Update pie zones display.
     this.pieZones.forEach(zone => zone.updateDisplay(this.players));
+    
+    // Update melee attacks.
+    this.meleeAttacks.getChildren().forEach(attack => {
+      if (!attack.update(delta)) {
+        // Already destroyed.
+      } else {
+        // Collision detection:
+        // If shooter is a player, check against enemies.
+        if (attack.owner.playerIndex !== undefined && attack.owner.playerIndex !== -1) {
+          this.enemies.forEach(enemy => {
+            if (Phaser.Geom.Intersects.RectangleToRectangle(attack.hitbox.getBounds(), enemy.sprite.getBounds())) {
+              enemy.health = Math.max(0, enemy.health - attack.damage);
+              attack.destroy();
+            }
+          });
+        } else {
+          // Shooter is an enemy; check against players.
+          this.players.forEach(player => {
+            if (Phaser.Geom.Intersects.RectangleToRectangle(attack.hitbox.getBounds(), player.sprite.getBounds())) {
+              let dmg = attack.damage;
+              if (player.shield > 0) {
+                let remainder = dmg - player.shield;
+                player.shield = Math.max(0, player.shield - dmg);
+                if (remainder > 0) {
+                  player.health = Math.max(0, player.health - remainder);
+                }
+              } else {
+                player.health = Math.max(0, player.health - dmg);
+              }
+              attack.destroy();
+            }
+          });
+        }
+      }
+    });
     
     // Update players and remove dead ones.
     for (let i = this.players.length - 1; i >= 0; i--) {
@@ -544,74 +643,7 @@ class MainScene extends Phaser.Scene {
       }
     }
     
-    // Update projectiles.
-    this.projectiles.getChildren().forEach(proj => {
-      proj.x += proj.velX * delta / 1000;
-      proj.y += proj.velY * delta / 1000;
-      if (proj.x < 0 || proj.x > GAME_WIDTH || proj.y < 0 || proj.y > GAME_HEIGHT) {
-        proj.destroy();
-      }
-    });
-    this.enemyProjectiles.getChildren().forEach(proj => {
-      proj.x += proj.velX * delta / 1000;
-      proj.y += proj.velY * delta / 1000;
-      if (proj.x < 0 || proj.x > GAME_WIDTH || proj.y < 0 || proj.y > GAME_HEIGHT) {
-        proj.destroy();
-      }
-    });
-    
-    // Collision: Player projectiles hitting players.
-    this.projectiles.getChildren().forEach(proj => {
-      this.players.forEach(player => {
-        if (proj.owner !== player && Phaser.Geom.Intersects.RectangleToRectangle(proj.getBounds(), player.sprite.getBounds())) {
-          let dmg = proj.owner.damage || 10;
-          if (player.shield > 0) {
-            let remainder = dmg - player.shield;
-            player.shield = Math.max(0, player.shield - dmg);
-            if (remainder > 0) {
-              player.health = Math.max(0, player.health - remainder);
-            }
-          } else {
-            player.health = Math.max(0, player.health - dmg);
-          }
-          proj.destroy();
-        }
-      });
-    });
-    
-    // Collision: Player projectiles hitting enemies.
-    this.projectiles.getChildren().forEach(proj => {
-      if (proj.owner && proj.owner.playerIndex !== undefined && proj.owner.playerIndex !== -1) {
-        this.enemies.forEach(enemy => {
-          if (Phaser.Geom.Intersects.RectangleToRectangle(proj.getBounds(), enemy.sprite.getBounds())) {
-            let dmg = proj.owner.damage || 10;
-            enemy.health = Math.max(0, enemy.health - dmg);
-            proj.destroy();
-          }
-        });
-      }
-    });
-    
-    // Collision: Enemy projectiles hitting players.
-    this.enemyProjectiles.getChildren().forEach(proj => {
-      this.players.forEach(player => {
-        if (Phaser.Geom.Intersects.RectangleToRectangle(proj.getBounds(), player.sprite.getBounds())) {
-          let dmg = 10;
-          if (player.shield > 0) {
-            let remainder = dmg - player.shield;
-            player.shield = Math.max(0, player.shield - dmg);
-            if (remainder > 0) {
-              player.health = Math.max(0, player.health - remainder);
-            }
-          } else {
-            player.health = Math.max(0, player.health - dmg);
-          }
-          proj.destroy();
-        }
-      });
-    });
-    
-    // Win condition: if only one unique god remains among players.
+    // Check win condition: if only one unique god remains among living players.
     let livingGods = new Set(this.players.map(p => p.god));
     if (this.players.length > 0 && livingGods.size === 1) {
       let winningGod = Array.from(livingGods)[0];
@@ -644,38 +676,33 @@ class MainScene extends Phaser.Scene {
     graphics.destroy();
   }
   
-  spawnProjectile(x, y, type, shooter) {
-    let projKey = 'projectile_regular';
-    let speed = 300;
-    if (type === 'long') { projKey = 'projectile_long'; speed = 400; }
-    else if (type === 'spin') { projKey = 'projectile_spin'; speed = 200; }
-    let projectile = this.add.sprite(x, y, projKey);
-    let dirX = 0, dirY = 0;
-    if (shooter.gamepad && shooter.gamepad.axes.length >= 4) {
-      dirX = shooter.gamepad.axes[2].getValue();
-      dirY = shooter.gamepad.axes[3].getValue();
+  spawnMeleeAttack(x, y, attackType, shooter) {
+    let offset = 0, width = 0, height = 0, damageMultiplier = 1;
+    if (attackType === "regular") {
+      offset = 20;
+      width = 30; height = 20;
+      damageMultiplier = 1;
+    } else if (attackType === "long") {
+      offset = 30;
+      width = 40; height = 20;
+      damageMultiplier = 0.8;
+    } else if (attackType === "spin") {
+      offset = 0;
+      width = 50; height = 50;
+      damageMultiplier = 0.7;
     }
-    if (Math.abs(dirX) < 0.1 && Math.abs(dirY) < 0.1) {
-      dirX = shooter.lastFacing.x;
-      dirY = shooter.lastFacing.y;
-    } else {
-      let mag = Math.sqrt(dirX*dirX + dirY*dirY);
-      dirX /= mag;
-      dirY /= mag;
+    let attackX = x, attackY = y;
+    if (offset > 0) {
+      attackX = x + shooter.lastFacing.x * offset;
+      attackY = y + shooter.lastFacing.y * offset;
     }
-    projectile.velX = dirX * speed;
-    projectile.velY = dirY * speed;
-    projectile.owner = shooter;
-    this.projectiles.add(projectile);
+    let rotation = (attackType === "spin") ? 0 : Math.atan2(shooter.lastFacing.y, shooter.lastFacing.x);
+    this.spawnMeleeAttackHitbox(attackX, attackY, width, height, rotation, shooter.damage * damageMultiplier, shooter);
   }
   
-  spawnEnemyProjectile(x, y, attackPower) {
-    let projectile = this.add.sprite(x, y, 'projectile_regular');
-    let angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-    let speed = 200 * attackPower;
-    projectile.velX = Math.cos(angle) * speed;
-    projectile.velY = Math.sin(angle) * speed;
-    this.enemyProjectiles.add(projectile);
+  spawnMeleeAttackHitbox(x, y, width, height, rotation, damage, shooter) {
+    let melee = new MeleeAttack(this, x, y, width, height, rotation, damage, shooter);
+    this.meleeAttacks.add(melee);
   }
 }
 
@@ -718,46 +745,41 @@ class HelpScene extends Phaser.Scene {
   }
   
   create() {
-    // Dark semi-transparent background overlay.
     this.add.rectangle(GAME_WIDTH/2, GAME_HEIGHT/2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7);
-    // Help text.
-    let helpText = 
+    let helpText =
 `Keyboard Controls:
 
 Player 0:
   Move: Arrow Keys
   Sprint: SHIFT
-  Regular Attack: SPACE
-  Long Range Attack: Q
-  Spin Attack: E
+  Regular Melee: SPACE
+  Long Melee: Q
+  Spin Melee: E
 
 Player 1:
   Move: W A S D
   Sprint: CONTROL
-  Regular Attack: F
-  Long Range Attack: G
-  Spin Attack: H
+  Regular Melee: F
+  Long Melee: G
+  Spin Melee: H
 
 Player 2:
   Move: I J K L
   Sprint: U
-  Regular Attack: O
-  Long Range Attack: P
-  Spin Attack: [
+  Regular Melee: O
+  Long Melee: P
+  Spin Melee: [
 
 Player 3:
   Move: Numpad 8/4/6/2
   Sprint: Numpad 0
-  Regular Attack: Numpad 1
-  Long Range Attack: Numpad 3
-  Spin Attack: Numpad 5
+  Regular Melee: Numpad 1
+  Long Melee: Numpad 3
+  Spin Melee: Numpad 5
 
 Additional:
-  Press "?" to toggle this help screen.`;
-
+  Press "?" or click the "?" icon to view this help screen.`;
     this.add.text(50, 50, helpText, { fontSize: '20px', fill: '#fff', wordWrap: { width: GAME_WIDTH - 100 } });
-    
-    // Create a close button.
     let closeBtn = document.createElement("button");
     closeBtn.id = "closeHelpBtn";
     closeBtn.textContent = "Close Help";
