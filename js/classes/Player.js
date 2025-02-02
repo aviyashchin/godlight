@@ -2,6 +2,7 @@ import { PLAYER_SPEED, ARENA_CENTER, ARENA_RADIUS } from '../helpers.js';
 import { GODS, GOD_CONFIG } from '../helpers.js';
 import { State, StateMachine } from '../managers/StateMachine.js';
 import GAME_CONFIG from '../config/gameConfig.js';
+import MeleeAttack from '../classes/MeleeAttack.js';
 
 // Player States
 class IdleState extends State {
@@ -252,29 +253,62 @@ export default class Player {
   meleeAttackRegular() {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
-    this.scene.spawnMeleeAttackHitbox(
+    
+    // Create hitbox
+    const hitbox = this.scene.add.rectangle(
       this.sprite.x, 
       this.sprite.y, 
       80,  // width
       40,  // height
-      Math.atan2(this.lastFacing.y, this.lastFacing.x), // rotation
-      this.damage * 1.2, // damage
-      this // shooter
+      0xffffff, // color
+      0 // alpha
     );
+    
+    // Set hitbox properties
+    hitbox.rotation = Math.atan2(this.lastFacing.y, this.lastFacing.x);
+    hitbox.damage = this.damage * 1.2;
+    hitbox.owner = this;
+    
+    // Add physics
+    this.scene.physics.add.existing(hitbox);
+    hitbox.body.setCircle(20);
+    
+    // Destroy after short time
+    this.scene.time.delayedCall(200, () => {
+      hitbox.destroy();
+    });
   }
 
   meleeAttackSpin() {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
-    this.scene.spawnMeleeAttackHitbox(
+    
+    // Create hitbox
+    const hitbox = this.scene.add.circle(
       this.sprite.x, 
       this.sprite.y, 
-      120, // diameter (width/height for circle)
-      120, 
-      0,   // rotation for spin
-      this.damage * 0.7, // damage
-      this // shooter
+      60, // radius
+      0xffffff, // color
+      0 // alpha
     );
+    
+    // Set hitbox properties
+    hitbox.damage = this.damage * 0.7;
+    hitbox.owner = this;
+    hitbox.rotationSpeed = 720; // degrees per second
+    
+    // Add physics
+    this.scene.physics.add.existing(hitbox);
+    
+    // Update rotation
+    this.scene.events.on('update', () => {
+      hitbox.rotation += hitbox.rotationSpeed * (this.scene.game.loop.delta / 1000);
+    });
+    
+    // Destroy after 1 second
+    this.scene.time.delayedCall(1000, () => {
+      hitbox.destroy();
+    });
   }
 
   projectileAttack() {
