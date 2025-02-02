@@ -1,5 +1,5 @@
 // js/scenes/MainScene.js
-import { GAME_WIDTH, GAME_HEIGHT, ARENA_CENTER, ARENA_RADIUS, PLAYER_SPEED, ENEMY_SPEED, GODS, GOD_CONFIG } from '../config/gameConfig.js';
+import GAME_CONFIG, { GODS, GOD_CONFIG } from '../config/gameConfig.js';
 import { createPolygonTexture, createCircleTexture } from '../utils/textureHelpers.js';
 import Player from '../classes/Player.js';
 import Enemy from '../classes/Enemy.js';
@@ -9,6 +9,11 @@ import PieZone from '../classes/PieZone.js';
 import PowerUp from '../classes/PowerUp.js';
 import CurseManager from '../classes/CurseManager.js';
 import CombatManager from '../managers/CombatManager.js';
+
+const ARENA_CENTER = {
+  x: GAME_CONFIG.arena.WIDTH / 2,
+  y: GAME_CONFIG.arena.HEIGHT / 2
+};
 
 export default class MainScene extends Phaser.Scene {
   constructor() {
@@ -52,9 +57,6 @@ export default class MainScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(0x111111);
 
-    ARENA_CENTER.x = GAME_WIDTH / 2;
-    ARENA_CENTER.y = GAME_HEIGHT / 2;
-    
     // Start background music.
     let music = this.sound.add('bgMusic');
     music.play({ loop: true });
@@ -69,7 +71,7 @@ export default class MainScene extends Phaser.Scene {
   \\__, |\\___/ \\__,_|_|_|\\__, |_| |_|\\__|
    __/ |                 __/ |          
   |___/                 |___/           `;
-    let titleText = this.add.text(GAME_WIDTH/2 - 300, 10, asciiArt, {
+    let titleText = this.add.text(GAME_CONFIG.arena.WIDTH/2 - 300, 10, asciiArt, {
       fontFamily: 'monospace',
       fontSize: '20px',
       fill: '#fff'
@@ -78,7 +80,7 @@ export default class MainScene extends Phaser.Scene {
     titleText.setScrollFactor(0);
     
     // Create a global HUD (fallback if no split-screen).
-    this.hudText = this.add.text(20, GAME_HEIGHT - 90, "", { fontSize: '16px', fill: '#fff' })
+    this.hudText = this.add.text(20, GAME_CONFIG.arena.HEIGHT - 90, "", { fontSize: '16px', fill: '#fff' })
       .setDepth(1000);
     
     // Create central Hades realm and pie zones.
@@ -93,7 +95,7 @@ export default class MainScene extends Phaser.Scene {
       let endAngle = (i + 1) * (2 * Math.PI / numZones);
       let god = godsForZones[i].name;
       let zoneColor = GOD_CONFIG[god] ? GOD_CONFIG[god].zoneColor : 0xffffff;
-      let zone = new PieZone(this, ARENA_CENTER.x, ARENA_CENTER.y, ARENA_RADIUS, startAngle, endAngle, god, zoneColor);
+      let zone = new PieZone(this, ARENA_CENTER.x, ARENA_CENTER.y, GAME_CONFIG.arena.RADIUS, startAngle, endAngle, god, zoneColor);
       this.pieZones.push(zone);
     }
     
@@ -138,8 +140,8 @@ export default class MainScene extends Phaser.Scene {
         this.cameras.remove(this.cameras.main);
       }
       this.playerCameras = [];
-      let camWidth = GAME_WIDTH / 2;
-      let camHeight = GAME_HEIGHT;
+      let camWidth = GAME_CONFIG.arena.WIDTH / 2;
+      let camHeight = GAME_CONFIG.arena.HEIGHT;
       // Create two side-by-side cameras:
       this.players.forEach((player, i) => {
         let x = i * camWidth;  // Player 0: x=0, Player 1: x=camWidth.
@@ -175,8 +177,8 @@ export default class MainScene extends Phaser.Scene {
     // Create the rest as enemies (if desired, or skip for testing).
     for (let i = 2; i < GODS.length; i++) {
       let godName = GODS[i].name;
-      let spawnX = Phaser.Math.Between(50, GAME_WIDTH - 50);
-      let spawnY = Phaser.Math.Between(50, GAME_HEIGHT - 50);
+      let spawnX = Phaser.Math.Between(50, GAME_CONFIG.arena.WIDTH - 50);
+      let spawnY = Phaser.Math.Between(50, GAME_CONFIG.arena.HEIGHT - 50);
       let shapeSides = (godName === "Hades") ? 0 : (3 + i);
       let enemy = new Enemy(this, spawnX, spawnY, i, shapeSides);
       enemy.god = godName;
@@ -192,6 +194,9 @@ export default class MainScene extends Phaser.Scene {
       enemy.currentBullets = cfg.bullets;
       this.enemies.push(enemy);
     }
+
+    // Initialize combat manager
+    this.combatManager = new CombatManager(this);
   }
   
   updateProjectileAttacks(delta) {
@@ -233,8 +238,8 @@ export default class MainScene extends Phaser.Scene {
             if (pu.type === "shield") {
               player.shield += 20;
             } else if (pu.type === "extraSpeed") {
-              player.speed = PLAYER_SPEED * 1.5;
-              this.time.delayedCall(5000, () => { player.speed = PLAYER_SPEED; });
+              player.speed = GAME_CONFIG.player.SPEED * 1.5;
+              this.time.delayedCall(5000, () => { player.speed = GAME_CONFIG.player.SPEED; });
             }
             pu.destroy();
             this.powerUps.splice(i, 1);
@@ -329,6 +334,8 @@ export default class MainScene extends Phaser.Scene {
         this.scene.start('WinScene', { god: Array.from(uniqueGods)[0] });
       }
     }
+
+    this.combatManager.update(delta);
   }
   
   spawnMeleeAttack(x, y, attackType, shooter) {
@@ -417,7 +424,7 @@ export default class MainScene extends Phaser.Scene {
         this,
         ARENA_CENTER.x,
         ARENA_CENTER.y,
-        ARENA_RADIUS,
+        GAME_CONFIG.arena.RADIUS,
         startAngle,
         endAngle,
         god,
