@@ -6,7 +6,7 @@ Created by Aesop Yashchin
 [Play GodLight](https://godlight.vercel.app/)
 
 ## About
-GodLight is a competitive multiplayer brawler featuring the gods of Mount Olympus. Each deity comes with a unique curse that shapes their gameplay, creating a challenging and strategic experience.
+GodLight is a competitive multiplayer brawler featuring the gods of Mount Olympus. Each area in the arena comes with a unique curse that shapes their gameplay, creating a challenging experience.
 
 ## Features
 * 13 playable gods from Greek mythology
@@ -14,6 +14,7 @@ GodLight is a competitive multiplayer brawler featuring the gods of Mount Olympu
 * Fast-paced competitive gameplay
 * No "good" abilities - only interesting drawbacks to master
 * local multiplayer with split-screen
+
 ## Playable Characters
 Each area in the arena carries a curse that affects their gameplay:
 
@@ -22,7 +23,7 @@ Each area in the arena carries a curse that affects their gameplay:
 * **Hades**: skellatal wariors spawn and attack whatever is near them (3 melee damage 1 ranged damage cannot leave hades area)
 * **Athena**: Attacks have a 10 percent chance to heal enemmeis (as much health as damage)
 * **Ares**: 10 less shield 
-* **Aphrodite**: evry one in the aprodite area is drawn to each other (just enough to make them slower if they  try to run away)
+* **Aphrodite**: every one in the aprodite area is drawn to each other (just enough to make them slower if they  try to run away)
 * **Apollo**: your side of the screen turns really bright
 * **Artemis**: moonbeams randomly apear silver arrows rain down from them (1 arrow 3 dammage)
 * **Hephaestus**: your regullar attack does 5 less damage
