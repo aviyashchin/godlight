@@ -68,7 +68,10 @@ export default class Enemy {
       this.sprite.x += this.patrolDirection.x * this.speed * deltaTime;
       this.sprite.y += this.patrolDirection.y * this.speed * deltaTime;
       
-      if (nearest && minDist < 300) this.state = "chase";
+      if (nearest && minDist < 300) {
+        this.state = "chase";
+        this.stateTime = 0;
+      }
       if (this.stateTime > 2000) {
         this.patrolDirection = { x: Math.random()*2-1, y: Math.random()*2-1 };
         this.stateTime = 0;
@@ -87,12 +90,12 @@ export default class Enemy {
       
       if (dist < this.attackRange && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
         if (Math.random() < 0.7) {
-          this.scene.combatManager.spawnProjectile(
+          this.scene.spawnProjectileAttack(
             this.sprite.x, this.sprite.y,
             this, dx/dist, dy/dist
           );
         } else {
-          this.scene.combatManager.spawnMeleeAttack(
+          this.scene.spawnMeleeAttack(
             this.sprite.x, this.sprite.y,
             Math.random() < 0.3 ? "spin" : "regular",
             this
@@ -105,6 +108,23 @@ export default class Enemy {
       if (minDist > 400 || this.health < this.maxHealth * 0.3) {
         this.state = "retreat";
         this.stateTime = 0;
+      }
+    }
+    
+    else if (this.state === "retreat") {
+      if (this.stateTime > 3000 || this.health > this.maxHealth * 0.7) {
+        this.state = "patrol";
+        this.stateTime = 0;
+      }
+      // Move away from nearest target if exists
+      if (nearest) {
+        const dx = nearest.sprite.x - this.sprite.x;
+        const dy = nearest.sprite.y - this.sprite.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist > 0) {
+          this.sprite.x -= (dx/dist) * this.speed * deltaTime;
+          this.sprite.y -= (dy/dist) * this.speed * deltaTime;
+        }
       }
     }
 
