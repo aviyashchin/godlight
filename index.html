@@ -6,14 +6,13 @@
   <style>
     body { margin: 0; }
     canvas { display: block; }
-    /* Simple styling for the win screen button */
-    #restartBtn {
+    /* Style for the help overlay button */
+    #closeHelpBtn {
       position: absolute;
-      top: 60%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      padding: 20px 40px;
-      font-size: 24px;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      font-size: 20px;
       background-color: #444;
       color: #fff;
       border: none;
@@ -48,7 +47,7 @@ const GODS = [
   { name: "Hera",      boon: "Royal Tax – Your allies lose gold when near you." }
 ];
 
-// God-specific configuration (stats, zone colors, etc.).
+// God-specific configuration.
 const GOD_CONFIG = {
   Zeus:      { health: 120, damage: 15, shield: 30, bullets: 12, bulletReload: 1000, shieldReload: 5000, zoneColor: 0xffcc00 },
   Poseidon:  { health: 130, damage: 12, shield: 35, bullets: 14, bulletReload: 900,  shieldReload: 4500, zoneColor: 0x00ccff },
@@ -74,7 +73,7 @@ const BUTTONS = {
 };
 
 // =======================
-// PieZone Class (for circular arena slices)
+// PieZone Class (Circular Arena Slice)
 // =======================
 class PieZone {
   constructor(scene, centerX, centerY, radius, startAngle, endAngle, god, zoneColor) {
@@ -82,8 +81,8 @@ class PieZone {
     this.centerX = centerX;
     this.centerY = centerY;
     this.radius = radius;
-    this.startAngle = startAngle; // in radians
-    this.endAngle = endAngle;     // in radians
+    this.startAngle = startAngle;
+    this.endAngle = endAngle;
     this.god = god;
     this.zoneColor = zoneColor;
     this.defaultColor = 0x444444;
@@ -131,7 +130,7 @@ class Player {
   constructor(scene, x, y, playerIndex) {
     this.scene = scene;
     this.playerIndex = playerIndex;
-    // Assign a god (for consistency, later we spawn in the matching zone).
+    // Assign a god – later spawned in the matching zone.
     this.god = Phaser.Utils.Array.GetRandom(GODS).name;
     let cfg = GOD_CONFIG[this.god] || { health: 100, damage: 10, shield: 20, bullets: 10, bulletReload: 1000, shieldReload: 5000 };
     this.maxHealth = cfg.health;
@@ -147,7 +146,7 @@ class Player {
     this.lastShieldReloadTime = 0;
     
     this.speed = 200;
-    // Create a smaller triangle (30x30).
+    // Create a smaller triangle (30x30) for the player.
     this.sprite = scene.add.sprite(x, y, 'player');
     this.sprite.setScale(0.75);
     this.sprite.setTint(Phaser.Display.Color.GetColor(100 + playerIndex * 50, 100, 200));
@@ -179,9 +178,10 @@ class Player {
     this.bulletText.setText("Bullets: " + this.currentBullets);
     this.bulletText.setPosition(this.sprite.x - 20, this.sprite.y - 60);
     
-    // Input handling.
+    // Input Handling (Keyboard fallback or Gamepad).
     if (!this.gamepad) {
       if (!this.keys) {
+        // Unique keyboard controls per player.
         if (this.playerIndex === 0) {
           this.keys = this.scene.input.keyboard.addKeys({
             left: Phaser.Input.Keyboard.KeyCodes.LEFT,
@@ -356,7 +356,7 @@ class Enemy {
     this.speed = 100;
     this.attackCooldown = 1000;
     this.lastAttackTime = 0;
-    // Create a smaller enemy square (20x20).
+    // Create a smaller square enemy.
     this.sprite = scene.add.sprite(x, y, 'enemy');
     this.sprite.setScale(0.66);
     this.sprite.setTint(0xff00ff);
@@ -389,7 +389,7 @@ class Enemy {
       if (minDist < 300 && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
         this.currentBullets--;
         let dirX = dx / mag, dirY = dy / mag;
-        // For enemy, use a simple object with damage and lastFacing.
+        // Fire projectile aimed at the nearest player.
         this.scene.spawnProjectile(this.sprite.x, this.sprite.y, 'regular', { damage: this.damage, playerIndex: -1, lastFacing: { x: dirX, y: dirY } });
         this.lastAttackTime = time;
       }
@@ -431,6 +431,7 @@ class MainScene extends Phaser.Scene {
   
   create() {
     this.cameras.main.setBackgroundColor(0x222222);
+    
     // Create circular arena as 13 pie zones.
     this.pieZones = [];
     let centerX = GAME_WIDTH / 2;
@@ -446,10 +447,9 @@ class MainScene extends Phaser.Scene {
       this.pieZones.push(zone);
     }
     
-    // Create players (up to 4). Spawn each player in the zone that matches their god.
+    // Create players (up to 4). Spawn each in the matching zone.
     this.players = [];
     for (let i = 0; i < 4; i++) {
-      // Assign a random god.
       let playerGod = Phaser.Utils.Array.GetRandom(GODS).name;
       let spawnX, spawnY;
       let zone = this.pieZones.find(z => z.god === playerGod);
@@ -475,7 +475,7 @@ class MainScene extends Phaser.Scene {
       this.players.push(player);
     }
     
-    // Create enemy NPCs. Spawn randomly within the arena circle.
+    // Create enemy NPCs.
     this.enemies = [];
     for (let i = 0; i < 5; i++) {
       let angle = Phaser.Math.FloatBetween(0, 2 * Math.PI);
@@ -485,6 +485,19 @@ class MainScene extends Phaser.Scene {
       let enemy = new Enemy(this, x, y);
       this.enemies.push(enemy);
     }
+    
+    // Add help icon in top right corner.
+    this.helpIcon = this.add.text(GAME_WIDTH - 30, 10, "?", { fontSize: '24px', fill: '#fff' });
+    this.helpIcon.setInteractive();
+    this.helpIcon.on('pointerdown', () => {
+      this.scene.start('HelpScene', { previousScene: 'MainScene' });
+    });
+    // Listen for "?" key press.
+    this.input.keyboard.on('keydown', (event) => {
+      if (event.key === '?') {
+        this.scene.start('HelpScene', { previousScene: 'MainScene' });
+      }
+    });
     
     // Gamepad assignment.
     if (this.input.gamepad.total > 0) {
@@ -520,7 +533,7 @@ class MainScene extends Phaser.Scene {
       }
     }
     
-    // Update enemies.
+    // Update enemies and remove dead ones.
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       let enemy = this.enemies[i];
       enemy.update(time, delta);
@@ -531,7 +544,7 @@ class MainScene extends Phaser.Scene {
       }
     }
     
-    // Update projectile positions.
+    // Update projectiles.
     this.projectiles.getChildren().forEach(proj => {
       proj.x += proj.velX * delta / 1000;
       proj.y += proj.velY * delta / 1000;
@@ -568,7 +581,6 @@ class MainScene extends Phaser.Scene {
     
     // Collision: Player projectiles hitting enemies.
     this.projectiles.getChildren().forEach(proj => {
-      // Only consider projectiles fired by players.
       if (proj.owner && proj.owner.playerIndex !== undefined && proj.owner.playerIndex !== -1) {
         this.enemies.forEach(enemy => {
           if (Phaser.Geom.Intersects.RectangleToRectangle(proj.getBounds(), enemy.sprite.getBounds())) {
@@ -599,7 +611,7 @@ class MainScene extends Phaser.Scene {
       });
     });
     
-    // Check win condition: if only one unique god remains among living players.
+    // Win condition: if only one unique god remains among players.
     let livingGods = new Set(this.players.map(p => p.god));
     if (this.players.length > 0 && livingGods.size === 1) {
       let winningGod = Array.from(livingGods)[0];
@@ -681,11 +693,7 @@ class WinScene extends Phaser.Scene {
   
   create() {
     this.cameras.main.setBackgroundColor(0x222222);
-    // Display win message.
-    this.add.text(GAME_WIDTH / 2 - 200, GAME_HEIGHT / 2 - 100, "The " + this.winningGod + " has won!", 
-      { fontSize: '48px', fill: '#fff' });
-    // Optionally, you could display an image or emblem here.
-    // Create a restart button.
+    this.add.text(GAME_WIDTH/2 - 200, GAME_HEIGHT/2 - 100, "The " + this.winningGod + " has won!", { fontSize: '48px', fill: '#fff' });
     let btn = document.createElement("button");
     btn.id = "restartBtn";
     btn.textContent = "Restart Game";
@@ -698,13 +706,77 @@ class WinScene extends Phaser.Scene {
 }
 
 // =======================
+// Help Scene Definition
+// =======================
+class HelpScene extends Phaser.Scene {
+  constructor() {
+    super('HelpScene');
+  }
+  
+  init(data) {
+    this.previousScene = data.previousScene || 'MainScene';
+  }
+  
+  create() {
+    // Dark semi-transparent background overlay.
+    this.add.rectangle(GAME_WIDTH/2, GAME_HEIGHT/2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7);
+    // Help text.
+    let helpText = 
+`Keyboard Controls:
+
+Player 0:
+  Move: Arrow Keys
+  Sprint: SHIFT
+  Regular Attack: SPACE
+  Long Range Attack: Q
+  Spin Attack: E
+
+Player 1:
+  Move: W A S D
+  Sprint: CONTROL
+  Regular Attack: F
+  Long Range Attack: G
+  Spin Attack: H
+
+Player 2:
+  Move: I J K L
+  Sprint: U
+  Regular Attack: O
+  Long Range Attack: P
+  Spin Attack: [
+
+Player 3:
+  Move: Numpad 8/4/6/2
+  Sprint: Numpad 0
+  Regular Attack: Numpad 1
+  Long Range Attack: Numpad 3
+  Spin Attack: Numpad 5
+
+Additional:
+  Press "?" to toggle this help screen.`;
+
+    this.add.text(50, 50, helpText, { fontSize: '20px', fill: '#fff', wordWrap: { width: GAME_WIDTH - 100 } });
+    
+    // Create a close button.
+    let closeBtn = document.createElement("button");
+    closeBtn.id = "closeHelpBtn";
+    closeBtn.textContent = "Close Help";
+    closeBtn.onclick = () => {
+      closeBtn.remove();
+      this.scene.start(this.previousScene);
+    };
+    document.body.appendChild(closeBtn);
+  }
+}
+
+// =======================
 // Game Configuration and Initialization
 // =======================
 const config = {
   type: Phaser.AUTO,
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
-  scene: [MainScene, WinScene],
+  scene: [MainScene, WinScene, HelpScene],
   parent: 'phaser-example',
   input: { gamepad: true }
 };
