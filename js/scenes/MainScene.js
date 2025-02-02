@@ -280,20 +280,20 @@ export default class MainScene extends Phaser.Scene {
     this.updatePowerUps(delta);
     
     // Update players.
-    for (let i = this.players.length - 1; i >= 0; i--) {
+    for (let i = 0; i < this.players.length; i++) {
       let player = this.players[i];
       player.update();
-      // Apply curse effects via CurseManager.
       this.curseManager.applyCurse(player);
-      // Update individual HUD if present.
       if (player.hudText) {
-        player.hudText.setText(`P${player.playerIndex}: ${player.god}\nHP: ${Math.floor(player.health)} | Shield: ${Math.floor(player.shield)} | Ammo: ${player.currentBullets}`);
+          player.hudText.setText(`P${player.playerIndex}: ${player.god}\nHP: ${Math.floor(player.health)} | Shield: ${Math.floor(player.shield)} | Ammo: ${player.currentBullets}`);
       }
       if (player.health <= 0) {
-        player.destroy();
-        this.players.splice(i, 1);
+          player.destroy();
+          this.players.splice(i, 1);
+          i--; // Adjust index after removal.
       }
-    }
+  }
+  
     
     // Update enemies.
     for (let i = this.enemies.length - 1; i >= 0; i--) {
