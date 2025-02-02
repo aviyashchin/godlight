@@ -6,6 +6,7 @@
   <style>
     body { margin: 0; }
     canvas { display: block; }
+    /* Help button style */
     #closeHelpBtn {
       position: absolute;
       top: 20px;
@@ -18,6 +19,7 @@
       cursor: pointer;
       z-index: 1000;
     }
+    /* HUD tooltip (stub) */
     #hudTooltip {
       position: absolute;
       padding: 5px 10px;
@@ -28,9 +30,9 @@
       z-index: 1000;
     }
   </style>
-  <!-- Load EasyStar.js for pathfinding -->
+  <!-- Load EasyStar.js for pathfinding (stub) -->
   <script src="https://cdn.jsdelivr.net/npm/easystarjs@0.4.4/bin/easystar-0.4.4.js"></script>
-  <!-- Include Phaser.js from CDN -->
+  <!-- Include Phaser.js -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
 </head>
 <body>
@@ -75,6 +77,7 @@ const GOD_CONFIG = {
 };
 
 // For this prototype, we generate simple placeholder sprites for each god.
+// (In a complete game, you would load sprites from OpenGameArt.org or Itch.io.)
 const GOD_SPRITES = {
   "Zeus": "zeus",
   "Poseidon": "poseidon",
@@ -132,7 +135,7 @@ for (let y = 0; y < gridRows; y++) {
 }
 easyStar.setGrid(grid);
 easyStar.setAcceptableTiles([0]);
-// TODO: Add obstacles and call easyStar.findPath() in enemy movement when needed.
+// TODO: Add obstacles and use easyStar.findPath() for enemy navigation.
 
 /* ======================================================================
    ProjectileAttack Class (For Long-Range Attacks)
@@ -230,8 +233,8 @@ class MeleeAttack {
     this.hitbox.rotation = rotation;
     this.damage = damage;
     this.owner = owner;
-    this.lifetime = 200;
-    // TODO: Add particle effects for impact.
+    this.lifetime = 200; // ms
+    // TODO: Add particle effects here.
   }
   update(delta) {
     this.lifetime -= delta;
@@ -256,9 +259,10 @@ class PowerUp {
   constructor(scene, x, y, type) {
     this.scene = scene;
     this.type = type;
-    this.sprite = scene.add.sprite(x, y, "projectile"); // Placeholder; replace later.
+    // Placeholder: using the projectile texture; replace later.
+    this.sprite = scene.add.sprite(x, y, "projectile");
     this.sprite.setScale(0.5);
-    this.lifetime = 10000;
+    this.lifetime = 10000; // ms
   }
   update(delta) {
     this.lifetime -= delta;
@@ -473,7 +477,7 @@ class Player {
 }
 
 /* ======================================================================
-   Enemy Class Definition (NPC with Home Zone & State Machine)
+   Enemy Class Definition (NPC with Home Zone & Expanded State Machine)
    ====================================================================== */
 class Enemy {
   constructor(scene, x, y, index) {
@@ -496,8 +500,10 @@ class Enemy {
     this.speed = ENEMY_SPEED;
     this.attackCooldown = 1000;
     this.lastAttackTime = 0;
+    // Assign home zone based on god.
     this.homeZone = this.scene.pieZones.find(z => z.god === this.god);
-    this.state = "home"; // States: home, chase, retreat, dodge.
+    // Expanded state machine: states can be "home", "patrol", "chase", "retreat", "dodge".
+    this.state = "patrol";
     this.stateTime = 0;
     this.patrolDirection = { x: Math.random()*2-1, y: Math.random()*2-1 };
     this.sprite = scene.add.sprite(x, y, 'enemy');
@@ -515,18 +521,32 @@ class Enemy {
       this.lastReloadTime = time;
     }
     
-    // Expanded state machine stub:
+    // Find nearest target among players and other enemies.
+    let nearest = null, minDist = Infinity;
+    let allTargets = this.scene.players.concat(this.scene.enemies.filter(e => e !== this));
+    for (let target of allTargets) {
+      let dx = target.sprite.x - this.sprite.x;
+      let dy = target.sprite.y - this.sprite.y;
+      let dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < minDist) { minDist = dist; nearest = target; }
+    }
+    
+    // Determine state:
     if (this.health < this.maxHealth * 0.3) {
       this.state = "retreat";
     } else if (this.scene.meleeAttacks.some(a => Phaser.Geom.Intersects.RectangleToRectangle(a.getBounds(), this.sprite.getBounds()))) {
       this.state = "dodge";
-    } else if (this.homeZone && !this.homeZone.contains(this.sprite.x, this.sprite.y)) {
+    } else if (nearest && minDist < 500) {
+      this.state = "chase";
+    } else if (!this.homeZone || !this.homeZone.contains(this.sprite.x, this.sprite.y)) {
       this.state = "home";
     } else {
-      this.state = "chase";
+      this.state = "patrol";
     }
     
+    // Act based on state:
     if (this.state === "home" && this.homeZone) {
+      // Move toward the center of your home zone.
       let dx = this.homeZone.centerX - this.sprite.x;
       let dy = this.homeZone.centerY - this.sprite.y;
       let mag = Math.sqrt(dx*dx + dy*dy);
@@ -534,46 +554,41 @@ class Enemy {
         this.sprite.x += (dx / mag) * this.speed * deltaTime;
         this.sprite.y += (dy / mag) * this.speed * deltaTime;
       }
-    } else if (this.state === "chase") {
-      let nearest = null, minDist = Infinity;
-      let allTargets = this.scene.players.concat(this.scene.enemies.filter(e => e !== this));
-      allTargets.forEach(target => {
-        let dx = target.sprite.x - this.sprite.x;
-        let dy = target.sprite.y - this.sprite.y;
-        let dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < minDist) { minDist = dist; nearest = target; }
-      });
-      if (nearest) {
-        let dx = nearest.sprite.x - this.sprite.x;
-        let dy = nearest.sprite.y - this.sprite.y;
-        let mag = Math.sqrt(dx*dx + dy*dy);
+    } else if (this.state === "patrol") {
+      // Random movement within territory. Change direction every 2 seconds.
+      if (this.stateTime > 2000) {
+        this.patrolDirection = { x: Math.random()*2-1, y: Math.random()*2-1 };
+        this.stateTime = 0;
+      }
+      this.sprite.x += this.patrolDirection.x * this.speed * deltaTime;
+      this.sprite.y += this.patrolDirection.y * this.speed * deltaTime;
+    } else if (this.state === "chase" && nearest) {
+      let dx = nearest.sprite.x - this.sprite.x;
+      let dy = nearest.sprite.y - this.sprite.y;
+      let mag = Math.sqrt(dx*dx + dy*dy);
+      if (mag > 0) {
         this.sprite.x += (dx / mag) * this.speed * deltaTime;
         this.sprite.y += (dy / mag) * this.speed * deltaTime;
-        if (minDist < 300 && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
-          this.currentBullets--;
-          let dirX = dx / mag, dirY = dy / mag;
-          this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, dirX, dirY);
-          this.lastAttackTime = time;
-        }
+      }
+      if (minDist < 300 && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
+        this.currentBullets--;
+        let dirX = dx / mag, dirY = dy / mag;
+        this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, dirX, dirY);
+        this.lastAttackTime = time;
       }
     } else if (this.state === "retreat") {
-      let nearest = null, minDist = Infinity;
-      let allTargets = this.scene.players.concat(this.scene.enemies.filter(e => e !== this));
-      allTargets.forEach(target => {
-        let dx = target.sprite.x - this.sprite.x;
-        let dy = target.sprite.y - this.sprite.y;
-        let dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < minDist) { minDist = dist; nearest = target; }
-      });
+      // Move away from the nearest target.
       if (nearest) {
         let dx = this.sprite.x - nearest.sprite.x;
         let dy = this.sprite.y - nearest.sprite.y;
         let mag = Math.sqrt(dx*dx + dy*dy);
-        this.sprite.x += (dx / mag) * this.speed * deltaTime;
-        this.sprite.y += (dy / mag) * this.speed * deltaTime;
+        if (mag > 0) {
+          this.sprite.x += (dx / mag) * this.speed * deltaTime;
+          this.sprite.y += (dy / mag) * this.speed * deltaTime;
+        }
       }
     } else if (this.state === "dodge") {
-      // Simple dodge: move perpendicular (stub).
+      // Simple dodge: move perpendicular to current direction.
       this.sprite.x += this.speed * deltaTime;
     }
     
@@ -620,7 +635,7 @@ class MainScene extends Phaser.Scene {
       let color = GOD_CONFIG[god] ? GOD_CONFIG[god].zoneColor : 0xffffff;
       graphics.fillStyle(color, 1);
       graphics.fillRect(0, 0, 64, 64);
-      // Draw a simple inner rectangle as a placeholder detail.
+      // Draw a simple inner rectangle.
       graphics.fillStyle(0x000000, 1);
       graphics.fillRect(20, 20, 24, 24);
       graphics.generateTexture(GOD_SPRITES[god], 64, 64);
@@ -869,13 +884,15 @@ class MainScene extends Phaser.Scene {
     this.pieZones.forEach(zone => zone.updateDisplay(this.players));
     this.hadesCircle.setPosition(GAME_WIDTH/2, GAME_HEIGHT/2);
     
+    // Update melee attacks so that each hitbox applies damage to all targets (not just one).
     for (let i = this.meleeAttacks.length - 1; i >= 0; i--) {
       let attack = this.meleeAttacks[i];
       if (!attack.update(delta)) {
         this.meleeAttacks.splice(i, 1);
       } else {
         let allTargets = this.players.concat(this.enemies);
-        for (let target of allTargets) {
+        let hitSomething = false;
+        allTargets.forEach(target => {
           if (target !== attack.owner &&
               Phaser.Geom.Intersects.RectangleToRectangle(attack.getBounds(), target.sprite.getBounds())) {
             let dmg = attack.damage;
@@ -888,10 +905,12 @@ class MainScene extends Phaser.Scene {
             } else {
               target.health = Math.max(0, target.health - dmg);
             }
-            attack.destroy();
-            this.meleeAttacks.splice(i, 1);
-            break;
+            hitSomething = true;
           }
+        });
+        if (hitSomething) {
+          attack.destroy();
+          this.meleeAttacks.splice(i, 1);
         }
       }
     }
@@ -1058,23 +1077,23 @@ const game = new Phaser.Game(config);
   Additional Suggestions for a Playable Game:
   
   Enhanced AI:
-    - Integrate a detailed A* grid with obstacles and call easyStar.findPath() for enemy navigation.
+    - Integrate a detailed A* grid (using EasyStar.js) with obstacles, and call easyStar.findPath() for enemy navigation.
     - Expand enemy state machines to robustly handle patrol, chase, retreat, and dodge.
   
   Visual & Audio:
-    - Replace placeholder sprites with polished assets from OpenGameArt.org or Itch.io.
-    - Add particle effects (using Phaser’s particle emitters) for impacts and explosions.
+    - Replace these placeholder sprites with polished assets from OpenGameArt.org or Itch.io, with smooth animations.
+    - Add particle effects (via Phaser’s particle emitters) for melee impacts and explosions.
     - Incorporate an adaptive soundtrack and context-sensitive sound effects.
   
   Power-Ups & Special Moves:
-    - Expand the PowerUp class to support multiple boost types and unique special moves per god.
+    - Expand the PowerUp class to support multiple boost types and add unique special moves for each god.
   
   UI/HUD Enhancements:
-    - Build a comprehensive HUD with detailed stats, tooltips (using the hudTooltip div), and in-game tutorials.
+    - Build a comprehensive HUD with detailed stats, contextual tooltips (using the hudTooltip div), and in-game tutorials.
   
   Code Organization & Performance:
-    - Refactor the code into separate modules for Player, Enemy, AI, UI, etc.
-    - Implement robust object pooling for transient objects (melee hitboxes, projectiles, enemies) to reduce garbage collection.
+    - Refactor code into separate modules for Player, Enemy, AI, UI, etc.
+    - Implement robust object pooling for transient objects to reduce garbage collection overhead.
   
   Further playtesting and balancing will be essential.
 */
