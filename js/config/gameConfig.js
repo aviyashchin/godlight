@@ -15,7 +15,13 @@ export const GODS = [
   { name: "Hades", color: 0x800080 },
   { name: "Ares", color: 0xff0000 },
   { name: "Athena", color: 0x808080 },
-  { name: "Apollo", color: 0xffa500 }
+  { name: "Apollo", color: 0xffa500 },
+  { name: "Artemis", color: 0x008000 },
+  { name: "Demeter", color: 0x964B00 },
+  { name: "Dionysus", color: 0x800020 },
+  { name: "Hephaestus", color: 0xCD7F32 },
+  { name: "Hermes", color: 0xC0C0C0 },
+  { name: "Hera", color: 0x4B0082 }
 ];
 
 export const GOD_CONFIG = {
@@ -72,6 +78,60 @@ export const GOD_CONFIG = {
     bulletReload: 900,
     shieldReload: 5200,
     zoneColor: 0xffa500
+  },
+  Artemis: {
+    health: 100,
+    damage: 10,
+    shield: 20,
+    bullets: 8,
+    bulletReload: 1000,
+    shieldReload: 4500,
+    zoneColor: 0x008000
+  },
+  Demeter: {
+    health: 120,
+    damage: 10,
+    shield: 25,
+    bullets: 8,
+    bulletReload: 1200,
+    shieldReload: 4500,
+    zoneColor: 0x964B00
+  },
+  Dionysus: {
+    health: 100,
+    damage: 10,
+    shield: 20,
+    bullets: 8,
+    bulletReload: 1000,
+    shieldReload: 4500,
+    zoneColor: 0x800020
+  },
+  Hephaestus: {
+    health: 100,
+    damage: 10,
+    shield: 20,
+    bullets: 8,
+    bulletReload: 1000,
+    shieldReload: 4500,
+    zoneColor: 0xCD7F32
+  },
+  Hermes: {
+    health: 100,
+    damage: 10,
+    shield: 20,
+    bullets: 8,
+    bulletReload: 1000,
+    shieldReload: 4500,
+    zoneColor: 0xC0C0C0
+  },
+  Hera: {
+    health: 100,
+    damage: 10,
+    shield: 20,
+    bullets: 8,
+    bulletReload: 1000,
+    shieldReload: 4500,
+    zoneColor: 0x4B0082
   }
 };
 

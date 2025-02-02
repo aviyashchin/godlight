@@ -35,12 +35,13 @@ export default class Player {
   constructor(scene, x, y, playerIndex, shapeSides) {
     this.scene = scene;
     this.playerIndex = playerIndex;
-    this.initializeComponents(x, y, shapeSides);
+    this.shapeSides = shapeSides;
+    this.initializeComponents(x, y);
     this.initializeStateMachine();
   }
 
-  initializeComponents(x, y, shapeSides) {
-    this.sprite = this.scene.add.sprite(x, y, `poly_${shapeSides}`);
+  initializeComponents(x, y) {
+    this.sprite = this.scene.add.sprite(x, y, `poly_${this.shapeSides}`);
     this.sprite.setScale(0.5);
     this.speed = GAME_CONFIG.player.BASE_SPEED;
     this.health = GAME_CONFIG.player.MAX_HEALTH;
@@ -52,7 +53,7 @@ export default class Player {
     this.attackCooldown = GAME_CONFIG.combat.COOLDOWNS.MELEE;
     
     // HUD elements
-    this.nameText = this.scene.add.text(x - 20, y - 70, `P${playerIndex}`, { 
+    this.nameText = this.scene.add.text(x - 20, y - 70, `P${this.playerIndex}`, { 
       fontSize: '12px', 
       fill: '#fff' 
     });

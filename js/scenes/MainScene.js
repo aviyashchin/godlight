@@ -362,4 +362,78 @@ export default class MainScene extends Phaser.Scene {
     let projectile = new ProjectileAttack(this, x, y, "projectile", velX, velY, damage, shooter);
     this.projectiles.push(projectile);
   }
+
+  createPlayers() {
+    this.players = [];
+    
+    // Create 2 players with different spawn positions
+    const playerConfigs = [
+      { x: ARENA_CENTER.x - 100, y: ARENA_CENTER.y, god: GODS[0].name },
+      { x: ARENA_CENTER.x + 100, y: ARENA_CENTER.y, god: GODS[1].name }
+    ];
+
+    playerConfigs.forEach((config, index) => {
+      const shapeSides = config.god === "Hades" ? 0 : (3 + index);
+      const player = new Player(this, config.x, config.y, index, shapeSides);
+      
+      // Set up player properties
+      player.god = config.god;
+      player.sprite.setTexture(config.god === "Hades" ? "circle_hades" : `poly_${shapeSides}`);
+      
+      // Assign home zone
+      player.homeZone = config.god === "Hades" ? 
+        this.hadesCircle : 
+        this.pieZones.find(z => z.god === config.god);
+      
+      // Set up god-specific configurations
+      const godConfig = GOD_CONFIG[config.god];
+      player.maxHealth = godConfig.health;
+      player.health = godConfig.health;
+      player.damage = godConfig.damage;
+      player.maxShield = godConfig.shield;
+      player.shield = godConfig.shield;
+      player.maxBullets = godConfig.bullets;
+      player.currentBullets = godConfig.bullets;
+      
+      this.players.push(player);
+    });
+  }
+
+  createArena() {
+    // ... existing arena setup code ...
+
+    // Create god zones
+    this.pieZones = [];
+    let godsForZones = GODS.filter(g => g.name !== "Hades");
+    const numZones = godsForZones.length;
+    
+    for (let i = 0; i < numZones; i++) {
+      const startAngle = i * (2 * Math.PI / numZones);
+      const endAngle = (i + 1) * (2 * Math.PI / numZones);
+      const god = godsForZones[i].name;
+      const zoneColor = GOD_CONFIG[god].zoneColor;
+      
+      const zone = new PieZone(
+        this,
+        ARENA_CENTER.x,
+        ARENA_CENTER.y,
+        ARENA_RADIUS,
+        startAngle,
+        endAngle,
+        god,
+        zoneColor
+      );
+      
+      this.pieZones.push(zone);
+    }
+
+    // Create Hades circle in the center
+    this.hadesCircle = this.add.circle(
+      ARENA_CENTER.x,
+      ARENA_CENTER.y,
+      75,
+      GOD_CONFIG["Hades"].zoneColor,
+      0.5
+    );
+  }
 }
