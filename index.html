@@ -78,59 +78,42 @@ class Player {
   
   // Update method called every frame.
   update() {
-  let deltaTime = this.scene.game.loop.delta / 1000;
-  
-  // Check if a gamepad is connected; if not, use keyboard input.
-  if (this.gamepad) {
-    let axisH = (this.gamepad.axes.length > 0) ? this.gamepad.axes[0].getValue() : 0;
-    let axisV = (this.gamepad.axes.length > 1) ? this.gamepad.axes[1].getValue() : 0;
+    const deltaTime = this.scene.game.loop.delta / 1000;
+    const currentTime = this.scene.time.now;
     
-    let velocityX = axisH * this.speed;
-    let velocityY = axisV * this.speed;
-    
-    if (this.gamepad.buttons[BUTTONS.A].pressed) {
-      velocityX *= 1.5;
-      velocityY *= 1.5;
-    }
-    
-    this.sprite.x += velocityX * deltaTime;
-    this.sprite.y += velocityY * deltaTime;
-  } else {
-    // Fallback: use keyboard arrow keys for movement (for testing)
-    const cursors = this.scene.input.keyboard.createCursorKeys();
-    let velocityX = 0, velocityY = 0;
-    if (cursors.left.isDown) { velocityX = -this.speed; }
-    else if (cursors.right.isDown) { velocityX = this.speed; }
-    if (cursors.up.isDown) { velocityY = -this.speed; }
-    else if (cursors.down.isDown) { velocityY = this.speed; }
-    
-    // Optional: sprint with shift
-    if (this.scene.input.keyboard.checkDown(cursors.shift, 0)) {
-      velocityX *= 1.5;
-      velocityY *= 1.5;
-    }
-    
-    this.sprite.x += velocityX * deltaTime;
-    this.sprite.y += velocityY * deltaTime;
-  }
-  
-  // Update the position of any attached text (e.g., god label)
-  this.godText.x = this.sprite.x - 20;
-  this.godText.y = this.sprite.y - 40;
-  
-  // Check for gamepad attack buttons as before.
-  if (this.gamepad) {
-    if (Phaser.Input.Gamepad.Gamepad.BUTTON_DOWN(this.gamepad, BUTTONS.B)) {
-      this.regularAttack();
-    }
-    if (Phaser.Input.Gamepad.Gamepad.BUTTON_DOWN(this.gamepad, BUTTONS.X)) {
-      this.longRangeAttack();
-    }
-    if (Phaser.Input.Gamepad.Gamepad.BUTTON_DOWN(this.gamepad, BUTTONS.Y)) {
-      this.spinAttack();
+    // Process movement from gamepad (or add fallback keyboard controls)
+    if (this.gamepad) {
+      let axisH = (this.gamepad.axes.length > 0) ? this.gamepad.axes[0].getValue() : 0;
+      let axisV = (this.gamepad.axes.length > 1) ? this.gamepad.axes[1].getValue() : 0;
+      let velocityX = axisH * this.speed;
+      let velocityY = axisV * this.speed;
+      if (this.gamepad.buttons[BUTTONS.A].pressed) {
+        velocityX *= 1.5;
+        velocityY *= 1.5;
+      }
+      this.sprite.x += velocityX * deltaTime;
+      this.sprite.y += velocityY * deltaTime;
+      this.godText.x = this.sprite.x - 20;
+      this.godText.y = this.sprite.y - 40;
+      
+      // Check for attacks with cooldown to avoid firing every frame
+      if (currentTime - this.lastAttackTime > this.attackCooldown) {
+        if (this.gamepad.buttons[BUTTONS.B].pressed) {
+          this.regularAttack();
+          this.lastAttackTime = currentTime;
+        }
+        if (this.gamepad.buttons[BUTTONS.X].pressed) {
+          this.longRangeAttack();
+          this.lastAttackTime = currentTime;
+        }
+        if (this.gamepad.buttons[BUTTONS.Y].pressed) {
+          this.spinAttack();
+          this.lastAttackTime = currentTime;
+        }
+      }
     }
   }
-}
+
 
   
   // Regular Attack: spawns a projectile.
