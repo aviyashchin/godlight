@@ -20,7 +20,7 @@
       z-index: 1000;
     }
   </style>
-  <!-- Include Phaser.js -->
+  <!-- Include Phaser.js from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
 </head>
 <body>
@@ -28,31 +28,28 @@
 /* ======================================================================
    Global Configuration
    ====================================================================== */
-const GAME_WIDTH = 1536;   // 50% as large as 3072
-const GAME_HEIGHT = 1152;  // 50% as large as 2304
+const GAME_WIDTH = 1536;   // 50% as large as previous (1536x1152)
+const GAME_HEIGHT = 1152;
 
-// List of gods (order matters for zone assignment)
 const GODS = [
-  { name: "Zeus",      boon: "Lightning Rod – Attracts melee hits, +25% damage taken by foes." },
-  { name: "Poseidon",  boon: "Unstable Tides – Randomly repels nearby characters every 8 seconds." },
-  { name: "Hades",     boon: "Soul Burden – Each defeat drains enemy movement speed." },
-  { name: "Athena",    boon: "Cursed Wisdom – Your attacks may inadvertently heal foes." },
-  { name: "Ares",      boon: "War's Toll – Damage dealt reflects back on you (15%)." },
-  { name: "Aphrodite", boon: "Heart's Discord – Healing effects might harm instead." },
+  { name: "Zeus",      boon: "Lightning Rod – Attracts melee hits, +25% damage to foes." },
+  { name: "Poseidon",  boon: "Unstable Tides – Repels nearby characters occasionally." },
+  // Note: Hades will be reserved for the central realm.
+  { name: "Athena",    boon: "Cursed Wisdom – Attacks may inadvertently heal foes." },
+  { name: "Ares",      boon: "War's Toll – Damage reflects (15%) back to you." },
+  { name: "Aphrodite", boon: "Heart's Discord – Healing can harm instead." },
   { name: "Apollo",    boon: "Blinding Pride – Accuracy drops with consecutive hits." },
-  { name: "Artemis",   boon: "Moon's Madness – Your attacks might target allies." },
-  { name: "Hephaestus",boon: "Forge's Flaw – Chance for melee attacks to backfire." },
-  { name: "Hermes",    boon: "Chaotic Speed – Your movement direction shifts randomly." },
-  { name: "Dionysus",  boon: "Eternal Hangover – Kill streaks spin your screen faster." },
-  { name: "Demeter",   boon: "Withering Touch – Areas around you sap speed." },
+  { name: "Artemis",   boon: "Moon's Madness – Attacks might misfire on allies." },
+  { name: "Hephaestus",boon: "Forge's Flaw – Melee attacks may backfire." },
+  { name: "Hermes",    boon: "Chaotic Speed – Movement direction shifts unpredictably." },
+  { name: "Dionysus",  boon: "Eternal Hangover – Kill streaks spin your screen." },
+  { name: "Demeter",   boon: "Withering Touch – Nearby areas sap speed." },
   { name: "Hera",      boon: "Royal Tax – Allies near you lose resources." }
 ];
 
-// God-specific configuration (distinct stats and on-theme colors)
 const GOD_CONFIG = {
   Zeus:      { health: 150, damage: 20, shield: 40, bullets: 12, bulletReload: 900, shieldReload: 4500, zoneColor: 0xffd700 },
   Poseidon:  { health: 170, damage: 15, shield: 45, bullets: 14, bulletReload: 800, shieldReload: 4000, zoneColor: 0x1e90ff },
-  Hades:     { health: 140, damage: 25, shield: 30, bullets: 10, bulletReload: 1000, shieldReload: 5000, zoneColor: 0x8b008b },
   Athena:    { health: 130, damage: 12, shield: 55, bullets: 15, bulletReload: 700, shieldReload: 3500, zoneColor: 0xc0c0c0 },
   Ares:      { health: 180, damage: 30, shield: 20, bullets: 8,  bulletReload: 1100, shieldReload: 5500, zoneColor: 0xff4500 },
   Aphrodite: { health: 120, damage: 10, shield: 60, bullets: 16, bulletReload: 600, shieldReload: 3000, zoneColor: 0xff69b4 },
@@ -62,7 +59,9 @@ const GOD_CONFIG = {
   Hermes:    { health: 130, damage: 14, shield: 40, bullets: 14, bulletReload: 750, shieldReload: 3750, zoneColor: 0x3cb371 },
   Dionysus:  { health: 140, damage: 13, shield: 45, bullets: 12, bulletReload: 900, shieldReload: 4500, zoneColor: 0xba55d3 },
   Demeter:   { health: 150, damage: 12, shield: 50, bullets: 15, bulletReload: 800, shieldReload: 4000, zoneColor: 0x20b2aa },
-  Hera:      { health: 160, damage: 15, shield: 70, bullets: 16, bulletReload: 700, shieldReload: 3500, zoneColor: 0xff69b4 }
+  Hera:      { health: 160, damage: 15, shield: 70, bullets: 16, bulletReload: 700, shieldReload: 3500, zoneColor: 0xff69b4 },
+  // Hades is not included in the pie zones; Hades will have its own central realm.
+  Hades:     { health: 160, damage: 24, shield: 35, bullets: 10, bulletReload: 1000, shieldReload: 5000, zoneColor: 0x8b008b }
 };
 
 // Xbox controller button indices.
@@ -70,7 +69,7 @@ const BUTTONS = {
   A: 0, // Sprint boost.
   B: 1, // Melee Attack (regular).
   X: 2, // Melee Attack (spin).
-  Y: 3  // Projectile (long-range) attack.
+  Y: 3  // Long-range Projectile Attack.
 };
 
 // Speeds (50% slower than before).
@@ -80,22 +79,27 @@ const ENEMY_SPEED = 50;
 /* ======================================================================
    MINIMAP & HUD
    ====================================================================== */
-// The minimap is implemented as a secondary camera in MainScene (see later).
-// The HUD displays overall game status (names, health, shield).
+// The minimap is implemented as a secondary camera (in MainScene).
+// The HUD is a text object that displays overall status.
 
-/* ======================================================================
-   ProjectileAttack Class (For Long-Range Attacks)
-   ====================================================================== */
+//
+// ======================================================================
+// ProjectileAttack Class (For Long-Range Attacks)
+// ======================================================================
 class ProjectileAttack {
   constructor(scene, x, y, texture, velX, velY, damage, owner) {
     this.scene = scene;
+    // Spawn projectile with an offset from the shooter.
+    const offset = 30;
+    x = x + owner.lastFacing.x * offset;
+    y = y + owner.lastFacing.y * offset;
     this.sprite = scene.add.sprite(x, y, texture);
     this.sprite.setScale(0.5);
     this.velX = velX;
     this.velY = velY;
     this.damage = damage;
     this.owner = owner;
-    this.lifetime = 2000; // milliseconds
+    this.lifetime = 2000; // ms
   }
   update(delta) {
     const dt = delta / 1000;
@@ -177,7 +181,7 @@ class MeleeAttack {
     this.hitbox.rotation = rotation;
     this.damage = damage;
     this.owner = owner;
-    this.lifetime = 200; // milliseconds
+    this.lifetime = 200; // ms
   }
   
   update(delta) {
@@ -205,7 +209,7 @@ class Player {
   constructor(scene, x, y, playerIndex) {
     this.scene = scene;
     this.playerIndex = playerIndex;
-    // Assign a god; later, players are spawned in the matching zone.
+    // Assign a god; when spawning, if the chosen god is "Hades", spawn in the central Hades zone.
     this.god = Phaser.Utils.Array.GetRandom(GODS).name;
     let cfg = GOD_CONFIG[this.god] || { health: 100, damage: 10, shield: 20, bullets: 10, bulletReload: 1000, shieldReload: 5000 };
     this.maxHealth = cfg.health;
@@ -221,11 +225,11 @@ class Player {
     this.lastShieldReloadTime = 0;
     
     this.speed = PLAYER_SPEED;
-    // Create a triangle sprite for the player.
+    // Create a triangle sprite.
     this.sprite = scene.add.sprite(x, y, 'player');
     this.sprite.setScale(0.75);
     this.sprite.setTint(Phaser.Display.Color.GetColor(100 + playerIndex * 50, 100, 200));
-    // Display the player's name (e.g., "P0: Zeus").
+    // Display player name (e.g., "P0: Zeus").
     this.nameText = scene.add.text(x - 20, y - 50, "P" + playerIndex + ": " + this.god, { fontSize: '12px', fill: '#fff' });
     this.bulletText = scene.add.text(x - 20, y - 70, '', { fontSize: '12px', fill: '#fff' });
     this.healthBar = scene.add.graphics();
@@ -257,7 +261,6 @@ class Player {
     // Input handling: keyboard fallback or gamepad.
     if (!this.gamepad) {
       if (!this.keys) {
-        // Unique keyboard controls per player.
         if (this.playerIndex === 0) {
           this.keys = this.scene.input.keyboard.addKeys({
             left: Phaser.Input.Keyboard.KeyCodes.LEFT,
@@ -345,8 +348,6 @@ class Player {
       this.sprite.y += vy * deltaTime;
       
       if (currentTime - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
-        // For gamepad, assign:
-        // BUTTON B: Melee regular; BUTTON X: Melee spin; BUTTON Y: Projectile.
         if (this.gamepad.buttons[BUTTONS.B].pressed) {
           this.meleeAttackRegular();
           this.lastAttackTime = currentTime;
@@ -382,7 +383,8 @@ class Player {
   projectileAttack() {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
-    this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this);
+    // Use player's lastFacing for direction.
+    this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, this.lastFacing.x, this.lastFacing.y);
   }
   
   updateHealthBar() {
@@ -407,31 +409,81 @@ class Player {
 }
 
 /* ======================================================================
-   Enemy Class Definition
+   ProjectileAttack Class (For Long-Range Attacks)
+   ====================================================================== */
+class ProjectileAttack {
+  constructor(scene, x, y, texture, velX, velY, damage, owner) {
+    this.scene = scene;
+    const offset = 30;
+    x = x + owner.lastFacing.x * offset;
+    y = y + owner.lastFacing.y * offset;
+    this.sprite = scene.add.sprite(x, y, texture);
+    this.sprite.setScale(0.5);
+    this.velX = velX;
+    this.velY = velY;
+    this.damage = damage;
+    this.owner = owner;
+    this.lifetime = 2000;
+  }
+  update(delta) {
+    const dt = delta / 1000;
+    this.sprite.x += this.velX * dt;
+    this.sprite.y += this.velY * dt;
+    this.lifetime -= delta;
+    if (this.lifetime <= 0) {
+      this.destroy();
+      return false;
+    }
+    return true;
+  }
+  getBounds() {
+    return this.sprite.getBounds();
+  }
+  destroy() {
+    this.sprite.destroy();
+  }
+}
+
+/* ======================================================================
+   Enemy Class Definition (NPC with Simplified AI and Home Zone)
    ====================================================================== */
 class Enemy {
   constructor(scene, x, y, index) {
     this.scene = scene;
     this.enemyIndex = index;
-    this.maxHealth = 60; // Adjusted for more distinct stats.
-    this.health = 60;
-    this.damage = 12;
-    this.maxBullets = 5;
-    this.currentBullets = 5;
-    this.reloadRate = 1500;
+    // Assign a god randomly from GODS except Hades.
+    let availableGods = GODS.filter(g => g.name !== "Hades");
+    this.god = Phaser.Utils.Array.GetRandom(availableGods).name;
+    let cfg = GOD_CONFIG[this.god] || { health: 100, damage: 10, shield: 20, bullets: 10, bulletReload: 1000, shieldReload: 5000 };
+    this.maxHealth = cfg.health;
+    this.health = cfg.health;
+    this.damage = cfg.damage;
+    this.maxShield = cfg.shield;
+    this.shield = cfg.shield;
+    this.maxBullets = cfg.bullets;
+    this.currentBullets = cfg.bullets;
+    this.reloadRate = cfg.bulletReload;
+    this.shieldReloadRate = cfg.shieldReload;
     this.lastReloadTime = 0;
+    this.lastShieldReloadTime = 0;
+    
     this.speed = ENEMY_SPEED;
     this.attackCooldown = 1000;
     this.lastAttackTime = 0;
-    this.state = "patrol";
+    // Assign a home zone: find the PieZone that matches this enemy’s god.
+    this.homeZone = this.scene.pieZones.find(z => z.god === this.god);
+    
+    // Initialize simple state: if in home zone, patrol; if not, move toward home.
+    this.state = "home"; // "home" means patrolling home area.
     this.stateTime = 0;
     this.patrolDirection = { x: Math.random()*2-1, y: Math.random()*2-1 };
+    
     // Create enemy sprite.
     this.sprite = scene.add.sprite(x, y, 'enemy');
     this.sprite.setScale(0.66);
     this.sprite.setTint(0xff00ff);
-    // Display enemy name.
-    this.nameText = scene.add.text(x - 10, y - 30, "Enemy " + index, { fontSize: '12px', fill: '#fff' });
+    // Display enemy name: e.g., "E0: Zeus"
+    this.nameText = scene.add.text(x - 10, y - 30, "E" + index + ": " + this.god, { fontSize: '12px', fill: '#fff' });
     this.healthBar = scene.add.graphics();
   }
   
@@ -443,30 +495,39 @@ class Enemy {
       this.lastReloadTime = time;
     }
     
-    // Simplified AI: always chase the nearest target.
-    let nearest = null, minDist = Infinity;
-    let allTargets = this.scene.players.concat(this.scene.enemies);
-    allTargets.forEach(target => {
-      if (target === this) return;
-      let dx = target.sprite.x - this.sprite.x;
-      let dy = target.sprite.y - this.sprite.y;
-      let dist = Math.sqrt(dx*dx + dy*dy);
-      if (dist < minDist) { minDist = dist; nearest = target; }
-    });
-    if (nearest) {
-      let dx = nearest.sprite.x - this.sprite.x;
-      let dy = nearest.sprite.y - this.sprite.y;
+    // Simplified AI:
+    // If enemy has a home zone, and is not inside it, move toward the center of that zone.
+    if (this.homeZone && !this.homeZone.contains(this.sprite.x, this.sprite.y)) {
+      let dx = this.homeZone.centerX - this.sprite.x;
+      let dy = this.homeZone.centerY - this.sprite.y;
       let mag = Math.sqrt(dx*dx + dy*dy);
-      let vx = (dx / mag) * this.speed;
-      let vy = (dy / mag) * this.speed;
-      this.sprite.x += vx * deltaTime;
-      this.sprite.y += vy * deltaTime;
-      // Optionally update state to "chase" (omitted for simplicity).
-      if (minDist < 300 && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
-        this.currentBullets--;
-        let dirX = dx / mag, dirY = dy / mag;
-        this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, dirX, dirY);
-        this.lastAttackTime = time;
+      if (mag > 0) {
+        this.sprite.x += (dx / mag) * this.speed * deltaTime;
+        this.sprite.y += (dy / mag) * this.speed * deltaTime;
+      }
+    } else {
+      // Otherwise, chase the nearest target (player or enemy not itself) but avoid hitting its own bullets.
+      let nearest = null, minDist = Infinity;
+      let allTargets = this.scene.players.concat(this.scene.enemies.filter(e => e !== this));
+      allTargets.forEach(target => {
+        let dx = target.sprite.x - this.sprite.x;
+        let dy = target.sprite.y - this.sprite.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < minDist) { minDist = dist; nearest = target; }
+      });
+      if (nearest) {
+        let dx = nearest.sprite.x - this.sprite.x;
+        let dy = nearest.sprite.y - this.sprite.y;
+        let mag = Math.sqrt(dx*dx + dy*dy);
+        this.sprite.x += (dx / mag) * this.speed * deltaTime;
+        this.sprite.y += (dy / mag) * this.speed * deltaTime;
+        // Attack if within range.
+        if (minDist < 300 && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
+          this.currentBullets--;
+          let dirX = dx / mag, dirY = dy / mag;
+          this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, dirX, dirY);
+          this.lastAttackTime = time;
+        }
       }
     }
     
@@ -500,38 +561,42 @@ class MainScene extends Phaser.Scene {
   }
   
   preload() {
+    // Create textures.
     this.createTriangleTexture('player', 30, 30, 0x00aaff);
     this.createPlaceholderGraphics('enemy', 20, 20, 0xff00ff);
-    // We'll use a simple placeholder for projectile attacks.
     this.createPlaceholderGraphics('projectile', 10, 10, 0xffffff);
   }
   
   create() {
     this.cameras.main.setBackgroundColor(0x222222);
     
-    // Add ASCII art "Godlight" banner and credit at top center.
+    // Add ASCII "GodLight" banner and credit at top center.
     const asciiArt =
-`  ____           _           _     _ _     
- / ___| ___  ___| |__   ___ | |__ (_) |__  
-| |  _ / _ \\/ __| '_ \\ / _ \\| '_ \\| | '_ \\ 
-| |_| |  __/ (__| | | | (_) | |_) | | | | |
- \\____|\\___|\\___|_| |_|\\___/|_.__/|_|_| |_|`;
-    this.add.text(GAME_WIDTH/2 - 200, 10, asciiArt, { fontFamily: 'monospace', fontSize: '20px', fill: '#fff' });
-    this.add.text(GAME_WIDTH/2 - 100, 150, "by Aesop Yashchin", { fontSize: '16px', fill: '#fff' });
+`                  _ _ _       _     _   
+                 | | (_)     | |   | |  
+   __ _  ___   __| | |_  __ _| |__ | |_ 
+  / _\` |/ _ \\ / _\` | | |/ _\` | \'_ \\| __|
+ | (_| | (_) | (_| | | | (_| | | | | |_ 
+  \\__, |\___/ \\__,_|_|_|\\__, |_| |_|\\__|
+   __/ |                 __/ |          
+  |___/                 |___/           `;
+    this.add.text(GAME_WIDTH/2 - 300, 10, asciiArt, { fontFamily: 'monospace', fontSize: '20px', fill: '#fff' });
+    this.add.text(GAME_WIDTH/2 - 100, 60, "by Aesop Yashchin", { fontSize: '16px', fill: '#fff' });
     
-    // Create a central circle for Hades's realm.
-    this.hadesCircle = this.add.circle(GAME_WIDTH/2, GAME_HEIGHT/2, 50, 0x660066, 0.5);
+    // Create central Hades realm: a circle 50% bigger than before.
+    this.hadesCircle = this.add.circle(GAME_WIDTH/2, GAME_HEIGHT/2, 75, GOD_CONFIG["Hades"].zoneColor, 0.5);
     
-    // Create circular arena as 13 pie zones.
+    // Create pie zones for all gods except Hades.
     this.pieZones = [];
     let centerX = GAME_WIDTH / 2;
     let centerY = GAME_HEIGHT / 2;
     let arenaRadius = Math.min(GAME_WIDTH, GAME_HEIGHT) / 2 - 20;
-    const numZones = 13;
+    const numZones = GODS.filter(g => g.name !== "Hades").length;
+    let filteredGods = GODS.filter(g => g.name !== "Hades");
     for (let i = 0; i < numZones; i++) {
       let startAngle = i * (2 * Math.PI / numZones);
       let endAngle = (i + 1) * (2 * Math.PI / numZones);
-      let god = GODS[i].name;
+      let god = filteredGods[i].name;
       let zoneColor = (GOD_CONFIG[god] && GOD_CONFIG[god].zoneColor) || 0xffffff;
       let zone = new PieZone(this, centerX, centerY, arenaRadius, startAngle, endAngle, god, zoneColor);
       this.pieZones.push(zone);
@@ -541,20 +606,28 @@ class MainScene extends Phaser.Scene {
     this.meleeAttacks = [];
     this.projectiles = [];
     
-    // Create players (up to 4). Spawn each in the matching zone.
+    // Create players (up to 4). If player's god is Hades, spawn in central circle; otherwise, in matching pie zone.
     this.players = [];
     for (let i = 0; i < 4; i++) {
       let playerGod = Phaser.Utils.Array.GetRandom(GODS).name;
       let spawnX, spawnY;
-      let zone = this.pieZones.find(z => z.god === playerGod);
-      if (zone) {
-        let angle = Phaser.Math.FloatBetween(zone.startAngle, zone.endAngle);
-        let r = Phaser.Math.FloatBetween(0, zone.radius * 0.8);
-        spawnX = zone.centerX + r * Math.cos(angle);
-        spawnY = zone.centerY + r * Math.sin(angle);
+      if (playerGod === "Hades") {
+        // Spawn randomly in the central Hades circle.
+        let angle = Phaser.Math.FloatBetween(0, 2 * Math.PI);
+        let r = Phaser.Math.FloatBetween(0, 75);
+        spawnX = centerX + r * Math.cos(angle);
+        spawnY = centerY + r * Math.sin(angle);
       } else {
-        spawnX = Phaser.Math.Between(50, GAME_WIDTH - 50);
-        spawnY = Phaser.Math.Between(50, GAME_HEIGHT - 50);
+        let zone = this.pieZones.find(z => z.god === playerGod);
+        if (zone) {
+          let angle = Phaser.Math.FloatBetween(zone.startAngle, zone.endAngle);
+          let r = Phaser.Math.FloatBetween(0, zone.radius * 0.8);
+          spawnX = zone.centerX + r * Math.cos(angle);
+          spawnY = zone.centerY + r * Math.sin(angle);
+        } else {
+          spawnX = Phaser.Math.Between(50, GAME_WIDTH - 50);
+          spawnY = Phaser.Math.Between(50, GAME_HEIGHT - 50);
+        }
       }
       let player = new Player(this, spawnX, spawnY, i);
       player.god = playerGod;
@@ -569,14 +642,35 @@ class MainScene extends Phaser.Scene {
       this.players.push(player);
     }
     
-    // Create enemy NPCs.
+    // Create enemy NPCs. Each enemy is now assigned a god (excluding Hades) and spawns in its home zone if possible.
     this.enemies = [];
     for (let i = 0; i < 5; i++) {
-      let angle = Phaser.Math.FloatBetween(0, 2 * Math.PI);
-      let r = Phaser.Math.FloatBetween(0, arenaRadius * 0.9);
-      let x = centerX + r * Math.cos(angle);
-      let y = centerY + r * Math.sin(angle);
-      let enemy = new Enemy(this, x, y, i);
+      // Choose a god for the enemy from filtered gods.
+      let enemyGod = Phaser.Utils.Array.GetRandom(GODS.filter(g => g.name !== "Hades")).name;
+      let cfg = GOD_CONFIG[enemyGod] || { health: 100, damage: 10, shield: 20, bullets: 10, bulletReload: 1000, shieldReload: 5000 };
+      // If enemy's god is found among the pie zones, spawn inside that zone; otherwise, spawn randomly.
+      let zone = this.pieZones.find(z => z.god === enemyGod);
+      let centerXEnemy, centerYEnemy;
+      if (zone) {
+        let angle = Phaser.Math.FloatBetween(zone.startAngle, zone.endAngle);
+        let r = Phaser.Math.FloatBetween(0, zone.radius * 0.8);
+        centerXEnemy = zone.centerX + r * Math.cos(angle);
+        centerYEnemy = zone.centerY + r * Math.sin(angle);
+      } else {
+        centerXEnemy = Phaser.Math.Between(50, GAME_WIDTH - 50);
+        centerYEnemy = Phaser.Math.Between(50, GAME_HEIGHT - 50);
+      }
+      let enemy = new Enemy(this, centerXEnemy, centerYEnemy, i);
+      enemy.god = enemyGod;
+      enemy.maxHealth = cfg.health;
+      enemy.health = cfg.health;
+      enemy.damage = cfg.damage;
+      enemy.maxShield = cfg.shield;
+      enemy.shield = cfg.shield;
+      enemy.maxBullets = cfg.bullets;
+      enemy.currentBullets = cfg.bullets;
+      // Set enemy's home zone.
+      enemy.homeZone = this.pieZones.find(z => z.god === enemy.god);
       this.enemies.push(enemy);
     }
     
@@ -584,11 +678,19 @@ class MainScene extends Phaser.Scene {
     this.helpIcon = this.add.text(GAME_WIDTH - 30, 10, "?", { fontSize: '24px', fill: '#fff' });
     this.helpIcon.setInteractive();
     this.helpIcon.on('pointerdown', () => {
-      this.scene.start('HelpScene', { previousScene: 'MainScene' });
+      if (this.scene.isActive('HelpScene')) {
+        this.scene.stop('HelpScene');
+      } else {
+        this.scene.launch('HelpScene', { previousScene: 'MainScene' });
+      }
     });
     this.input.keyboard.on('keydown', (event) => {
       if (event.key === '?') {
-        this.scene.start('HelpScene', { previousScene: 'MainScene' });
+        if (this.scene.isActive('HelpScene')) {
+          this.scene.stop('HelpScene');
+        } else {
+          this.scene.launch('HelpScene', { previousScene: 'MainScene' });
+        }
       }
     });
     
@@ -611,7 +713,7 @@ class MainScene extends Phaser.Scene {
     // Create a minimap camera in the upper-left corner.
     this.minimap = this.cameras.add(10, 10, 200, 150).setZoom(200 / GAME_WIDTH).setBackgroundColor(0x222222);
     
-    // Create a HUD text object (shows overall status).
+    // Create a HUD text object.
     this.hudText = this.add.text(10, GAME_HEIGHT - 80, "", { fontSize: '20px', fill: '#fff' });
   }
   
@@ -641,23 +743,49 @@ class MainScene extends Phaser.Scene {
   }
   
   spawnProjectileAttack(x, y, shooter, dirX, dirY) {
-    let speed = 500; // Projectile speed.
-    // Normalize direction.
+    let speed = 500;
     let mag = Math.sqrt(dirX * dirX + dirY * dirY);
     if (mag === 0) { dirX = shooter.lastFacing.x; dirY = shooter.lastFacing.y; }
     else { dirX /= mag; dirY /= mag; }
     let velX = dirX * speed;
     let velY = dirY * speed;
-    let damage = shooter.damage * 1.2; // Projectile has slightly higher damage.
+    let damage = shooter.damage * 1.2;
     let projectile = new ProjectileAttack(this, x, y, "projectile", velX, velY, damage, shooter);
     this.projectiles.push(projectile);
   }
   
+  updateProjectileAttacks(delta) {
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      let proj = this.projectiles[i];
+      if (!proj.update(delta)) {
+        this.projectiles.splice(i, 1);
+      } else {
+        let allTargets = this.players.concat(this.enemies);
+        for (let target of allTargets) {
+          if (target !== proj.owner &&
+              Phaser.Geom.Intersects.RectangleToRectangle(proj.getBounds(), target.sprite.getBounds())) {
+            let dmg = proj.damage;
+            if (target.shield > 0) {
+              let remainder = dmg - target.shield;
+              target.shield = Math.max(0, target.shield - dmg);
+              if (remainder > 0) {
+                target.health = Math.max(0, target.health - remainder);
+              }
+            } else {
+              target.health = Math.max(0, target.health - dmg);
+            }
+            proj.destroy();
+            this.projectiles.splice(i, 1);
+            break;
+          }
+        }
+      }
+    }
+  }
+  
   update(time, delta) {
-    // Update pie zones.
     this.pieZones.forEach(zone => zone.updateDisplay(this.players));
-    
-    // Update the central Hades circle.
+    // Ensure the Hades circle remains at center.
     this.hadesCircle.setPosition(GAME_WIDTH/2, GAME_HEIGHT/2);
     
     // Update melee attacks.
@@ -666,12 +794,10 @@ class MainScene extends Phaser.Scene {
       if (!attack.update(delta)) {
         this.meleeAttacks.splice(i, 1);
       } else {
-        // Collision: Check against all characters (players + enemies) except the shooter.
         let allTargets = this.players.concat(this.enemies);
         for (let target of allTargets) {
           if (target !== attack.owner &&
               Phaser.Geom.Intersects.RectangleToRectangle(attack.getBounds(), target.sprite.getBounds())) {
-            // Apply damage with shield reduction.
             let dmg = attack.damage;
             if (target.shield > 0) {
               let remainder = dmg - target.shield;
@@ -690,35 +816,7 @@ class MainScene extends Phaser.Scene {
       }
     }
     
-    // Update projectile attacks.
-    for (let i = this.projectiles.length - 1; i >= 0; i--) {
-      let proj = this.projectiles[i];
-      if (!proj.update(delta)) {
-        this.projectiles.splice(i, 1);
-      } else {
-        // Collision: Check against all characters except owner.
-        let allTargets = this.players.concat(this.enemies);
-        for (let target of allTargets) {
-          if (target !== proj.owner &&
-              Phaser.Geom.Intersects.RectangleToRectangle(proj.getBounds(), target.sprite.getBounds())) {
-            // Apply damage with shield reduction.
-            let dmg = proj.damage;
-            if (target.shield > 0) {
-              let remainder = dmg - target.shield;
-              target.shield = Math.max(0, target.shield - dmg);
-              if (remainder > 0) {
-                target.health = Math.max(0, target.health - remainder);
-              }
-            } else {
-              target.health = Math.max(0, target.health - dmg);
-            }
-            proj.destroy();
-            this.projectiles.splice(i, 1);
-            break;
-          }
-        }
-      }
-    }
+    this.updateProjectileAttacks(delta);
     
     // Update players.
     for (let i = this.players.length - 1; i >= 0; i--) {
@@ -736,18 +834,17 @@ class MainScene extends Phaser.Scene {
       enemy.update(time, delta);
       if (enemy.health <= 0) {
         enemy.sprite.destroy();
+        enemy.nameText.destroy();
         enemy.healthBar.destroy();
         this.enemies.splice(i, 1);
       }
     }
     
-    // Update HUD: display names, health, shield for all characters.
     let allChars = this.players.concat(this.enemies);
-    let hudInfo = "Total Combatants: " + allChars.length + "\n";
+    let hudInfo = "Combatants Left: " + allChars.length + "\n";
     allChars.forEach((char, idx) => {
-      // For players, show "P0: Zeus", for enemies, "Enemy 0"
       let label = (char.playerIndex !== undefined) ? ("P" + char.playerIndex + ": " + char.god)
-                                                  : ("Enemy " + idx);
+                                                  : ("E" + idx + ": " + char.god);
       hudInfo += label + " - HP: " + char.health + ", Shield: " + char.shield + "\n";
     });
     this.hudText.setText(hudInfo);
@@ -849,7 +946,9 @@ class MainScene extends Phaser.Scene {
   
   update(time, delta) {
     this.pieZones.forEach(zone => zone.updateDisplay(this.players));
+    // Ensure Hades's central circle remains centered and 50% bigger.
     this.hadesCircle.setPosition(GAME_WIDTH/2, GAME_HEIGHT/2);
+    
     for (let i = this.meleeAttacks.length - 1; i >= 0; i--) {
       let attack = this.meleeAttacks[i];
       if (!attack.update(delta)) {
@@ -893,6 +992,7 @@ class MainScene extends Phaser.Scene {
       enemy.update(time, delta);
       if (enemy.health <= 0) {
         enemy.sprite.destroy();
+        enemy.nameText.destroy();
         enemy.healthBar.destroy();
         this.enemies.splice(i, 1);
       }
@@ -902,7 +1002,7 @@ class MainScene extends Phaser.Scene {
     let hudInfo = "Combatants Left: " + allChars.length + "\n";
     allChars.forEach((char, idx) => {
       let label = (char.playerIndex !== undefined) ? ("P" + char.playerIndex + ": " + char.god)
-                                                  : ("Enemy " + idx);
+                                                  : ("E" + idx + ": " + char.god);
       hudInfo += label + " - HP: " + char.health + ", Shield: " + char.shield + "\n";
     });
     this.hudText.setText(hudInfo);
@@ -964,7 +1064,7 @@ class WinScene extends Phaser.Scene {
 }
 
 /* ======================================================================
-   Help Scene Definition
+   Help Scene Definition (Toggles off when "?" is pressed again)
    ====================================================================== */
 class HelpScene extends Phaser.Scene {
   constructor() {
@@ -976,6 +1076,7 @@ class HelpScene extends Phaser.Scene {
   }
   
   create() {
+    // Create a semi-transparent overlay.
     this.add.rectangle(GAME_WIDTH/2, GAME_HEIGHT/2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7);
     let helpText =
 `Keyboard Controls:
@@ -1009,14 +1110,21 @@ Player 3:
   Projectile Attack: Numpad 5
 
 Additional:
-  Press "?" or click the "?" icon to view this help screen.`;
+  Press "?" to toggle this help screen.`;
     this.add.text(50, 50, helpText, { fontSize: '20px', fill: '#fff', wordWrap: { width: GAME_WIDTH - 100 } });
+    
+    // Listen for "?" key to close help.
+    this.input.keyboard.once('keydown-?', () => {
+      this.scene.stop('HelpScene');
+    });
+    
+    // Also create a close button.
     let closeBtn = document.createElement("button");
     closeBtn.id = "closeHelpBtn";
     closeBtn.textContent = "Close Help";
     closeBtn.onclick = () => {
       closeBtn.remove();
-      this.scene.start(this.previousScene);
+      this.scene.stop('HelpScene');
     };
     document.body.appendChild(closeBtn);
   }
@@ -1037,12 +1145,12 @@ const config = {
 const game = new Phaser.Game(config);
 
 /*
- Further Improvements (for future work):
- - Enhanced AI: Integrate robust A* pathfinding and a proper state machine for patrol/chase/dodge.
- - Visual & Audio: Replace placeholders with polished sprites/animations, add particle effects, and a rich soundtrack.
- - Power-Ups: Introduce temporary boosts (extra shields, speed) and unique special moves per god.
- - UI: Build a comprehensive HUD with tooltips and in-game tutorials.
- - Code Organization: Refactor into separate modules and implement object pooling for transient objects.
+  Further improvements:
+  - Enhanced AI: Integrate robust A* pathfinding and a more complete state machine for patrol/chase/dodge.
+  - Visual & Audio: Replace placeholders with polished art/animations, add particle effects, and a richer soundtrack.
+  - Power-Ups: Introduce temporary boosts (extra shields, speed) and unique special moves per god.
+  - UI: Build a comprehensive HUD with tooltips and in-game tutorials.
+  - Code Organization: Refactor into separate modules and implement object pooling for transient objects.
 */
 </script>
 </body>
