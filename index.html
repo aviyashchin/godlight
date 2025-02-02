@@ -74,8 +74,7 @@ const GOD_CONFIG = {
   Hades:     { health: 160, damage: 24, shield: 35, bullets: 10, bulletReload: 1000, shieldReload: 5000, zoneColor: 0x8b008b }
 };
 
-// For this prototype we generate simple placeholder sprites for each god.
-// The color for each sprite is based on its zoneColor.
+// For this prototype, we generate simple placeholder sprites for each god.
 const GOD_SPRITES = {
   "Zeus": "zeus",
   "Poseidon": "poseidon",
@@ -133,7 +132,46 @@ for (let y = 0; y < gridRows; y++) {
 }
 easyStar.setGrid(grid);
 easyStar.setAcceptableTiles([0]);
-// TODO: Populate obstacles and use easyStar.findPath() in enemy AI when needed.
+// TODO: Add obstacles and call easyStar.findPath() in enemy movement when needed.
+
+/* ======================================================================
+   ProjectileAttack Class (For Long-Range Attacks)
+   ====================================================================== */
+class ProjectileAttack {
+  constructor(scene, x, y, texture, velX, velY, damage, owner) {
+    this.scene = scene;
+    if (!owner.lastFacing) {
+      owner.lastFacing = { x: 1, y: 0 };
+    }
+    const offset = 30;
+    x = x + owner.lastFacing.x * offset;
+    y = y + owner.lastFacing.y * offset;
+    this.sprite = scene.add.sprite(x, y, texture);
+    this.sprite.setScale(0.5);
+    this.velX = velX;
+    this.velY = velY;
+    this.damage = damage;
+    this.owner = owner;
+    this.lifetime = 2000;
+  }
+  update(delta) {
+    const dt = delta / 1000;
+    this.sprite.x += this.velX * dt;
+    this.sprite.y += this.velY * dt;
+    this.lifetime -= delta;
+    if (this.lifetime <= 0) {
+      this.destroy();
+      return false;
+    }
+    return true;
+  }
+  getBounds() {
+    return this.sprite.getBounds();
+  }
+  destroy() {
+    this.sprite.destroy();
+  }
+}
 
 /* ======================================================================
    PieZone Class (For Circular Arena Slices)
@@ -192,7 +230,7 @@ class MeleeAttack {
     this.hitbox.rotation = rotation;
     this.damage = damage;
     this.owner = owner;
-    this.lifetime = 200; // ms
+    this.lifetime = 200;
     // TODO: Add particle effects for impact.
   }
   update(delta) {
@@ -218,10 +256,9 @@ class PowerUp {
   constructor(scene, x, y, type) {
     this.scene = scene;
     this.type = type;
-    // Use the projectile texture as a placeholder.
-    this.sprite = scene.add.sprite(x, y, "projectile");
+    this.sprite = scene.add.sprite(x, y, "projectile"); // Placeholder; replace later.
     this.sprite.setScale(0.5);
-    this.lifetime = 10000; // ms
+    this.lifetime = 10000;
   }
   update(delta) {
     this.lifetime -= delta;
@@ -583,7 +620,7 @@ class MainScene extends Phaser.Scene {
       let color = GOD_CONFIG[god] ? GOD_CONFIG[god].zoneColor : 0xffffff;
       graphics.fillStyle(color, 1);
       graphics.fillRect(0, 0, 64, 64);
-      // Draw a simple letter or symbol for the god.
+      // Draw a simple inner rectangle as a placeholder detail.
       graphics.fillStyle(0x000000, 1);
       graphics.fillRect(20, 20, 24, 24);
       graphics.generateTexture(GOD_SPRITES[god], 64, 64);
@@ -635,7 +672,7 @@ class MainScene extends Phaser.Scene {
     this.powerUps = [];
     
     // Spawn exactly 13 combatants (one per god).
-    // First 4 in the GODS array are player-controlled; the remaining 9 are AI.
+    // First 4 gods are player-controlled; the remaining 9 are AI-controlled.
     this.players = [];
     this.enemies = [];
     for (let i = 0; i < GODS.length; i++) {
@@ -1021,25 +1058,25 @@ const game = new Phaser.Game(config);
   Additional Suggestions for a Playable Game:
   
   Enhanced AI:
-    - Integrate EasyStar.js with a detailed grid including obstacles, and call easyStar.findPath() in enemy AI.
-    - Expand the enemy state machine for robust patrol, chase, retreat, and dodge behaviors.
+    - Integrate a detailed A* grid with obstacles and call easyStar.findPath() for enemy navigation.
+    - Expand enemy state machines to robustly handle patrol, chase, retreat, and dodge.
   
   Visual & Audio:
-    - Replace these placeholder sprites with polished assets (from OpenGameArt.org or Itch.io) and create smooth animations.
-    - Add particle effects using Phaser’s particle systems for impacts and explosions.
-    - Use adaptive background music and sound effects that react to gameplay events.
+    - Replace placeholder sprites with polished assets from OpenGameArt.org or Itch.io.
+    - Add particle effects (using Phaser’s particle emitters) for impacts and explosions.
+    - Incorporate an adaptive soundtrack and context-sensitive sound effects.
   
   Power-Ups & Special Moves:
-    - Expand the PowerUp class to include multiple boost types and design unique special moves for each god.
+    - Expand the PowerUp class to support multiple boost types and unique special moves per god.
   
   UI/HUD Enhancements:
-    - Build a more comprehensive HUD with detailed stats, contextual tooltips (using the hudTooltip div), and in-game tutorials.
+    - Build a comprehensive HUD with detailed stats, tooltips (using the hudTooltip div), and in-game tutorials.
   
   Code Organization & Performance:
-    - Refactor the code into separate modules (for Player, Enemy, AI, UI, etc.).
-    - Implement object pooling for transient objects to reduce garbage collection overhead.
+    - Refactor the code into separate modules for Player, Enemy, AI, UI, etc.
+    - Implement robust object pooling for transient objects (melee hitboxes, projectiles, enemies) to reduce garbage collection.
   
-  Further playtesting and balancing will be necessary to refine these systems.
+  Further playtesting and balancing will be essential.
 */
 </script>
 </body>
