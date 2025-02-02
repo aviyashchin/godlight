@@ -243,9 +243,6 @@ export default class MainScene extends Phaser.Scene {
     // Update zones.
     this.pieZones.forEach(zone => zone.updateDisplay(this.players));
     this.hadesCircle.setPosition(ARENA_CENTER.x, ARENA_CENTER.y);
-    if (this.curseManager) {
-      this.curseManager.applyCurse(player);
-    }
 
     // Update melee attacks.
     for (let i = this.meleeAttacks.length - 1; i >= 0; i--) {
