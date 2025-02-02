@@ -1,6 +1,6 @@
 // js/classes/Enemy.js
-import { ENEMY_SPEED, ARENA_CENTER, ARENA_RADIUS } from '../helpers.js';
 import { GODS, GOD_CONFIG } from '../config/gameConfig.js';
+import { ARENA_CENTER, ARENA_RADIUS } from '../config/constants.js';
 
 export default class Enemy {
   constructor(scene, x, y, god) {
@@ -10,7 +10,6 @@ export default class Enemy {
     this.sprite.setScale(0.5);
     this.sprite.setTint(GOD_CONFIG[god].zoneColor);
     
-    // Combat stats from config
     const cfg = GOD_CONFIG[god];
     Object.assign(this, {
       maxHealth: cfg.health,
@@ -21,123 +20,115 @@ export default class Enemy {
       maxBullets: cfg.bullets,
       currentBullets: cfg.bullets,
       reloadRate: cfg.bulletReload,
-      shieldReloadRate: cfg.shieldReload
+      shieldReloadRate: cfg.shieldReload,
+      lastReloadTime: 0,
+      lastShieldReloadTime: 0,
+      lastAttackTime: 0,
+      attackCooldown: 1000,
+      attackRange: 200,
+      speed: 100,
+      state: "patrol",
+      stateTime: 0,
+      patrolDirection: { x: Math.random()*2-1, y: Math.random()*2-1 }
     });
 
-    // Combat timers
-    this.lastReloadTime = 0;
-    this.lastShieldReloadTime = 0;
-    this.lastAttackTime = 0;
-    this.attackCooldown = 2000;
-    this.attackRange = 200;
-
-    // Movement
-    this.lastFacing = { x: 1, y: 0 };
-    this.speed = 100;
-    
-    // UI elements
     this.nameText = scene.add.text(x - 20, y - 30, "E: " + this.god, { fontSize: '12px', fill: '#fff' });
     this.healthBar = scene.add.graphics();
   }
 
   update(time, delta) {
-    // Shield regeneration
+    // Reloading
+    if (time - this.lastReloadTime > this.reloadRate && this.currentBullets < this.maxBullets) {
+      this.currentBullets++;
+      this.lastReloadTime = time;
+    }
     if (time - this.lastShieldReloadTime > this.shieldReloadRate && this.shield < this.maxShield) {
       this.shield++;
       this.lastShieldReloadTime = time;
     }
 
-    // Bullet reloading
-    if (time - this.lastReloadTime > this.reloadRate && this.currentBullets < this.maxBullets) {
-      this.currentBullets++;
-      this.lastReloadTime = time;
-    }
-
-    // Find nearest target
-    const allTargets = [...this.scene.players, ...this.scene.enemies]
-      .filter(target => target !== this);
-    
-    let nearestTarget = null;
-    let shortestDistance = Infinity;
+    // Find target
+    let nearest = null, minDist = Infinity;
+    const allTargets = [...this.scene.players, ...this.scene.enemies].filter(e => e !== this);
     
     allTargets.forEach(target => {
-      const distance = Phaser.Math.Distance.Between(
-        this.sprite.x, this.sprite.y,
-        target.sprite.x, target.sprite.y
-      );
-      if (distance < shortestDistance) {
-        shortestDistance = distance;
-        nearestTarget = target;
+      const dx = target.sprite.x - this.sprite.x;
+      const dy = target.sprite.y - this.sprite.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = target;
       }
     });
 
-    if (nearestTarget) {
-      this.handleCombat(nearestTarget, shortestDistance, time, delta);
+    // State machine
+    const deltaTime = delta / 1000;
+    this.stateTime += delta;
+
+    if (this.state === "patrol") {
+      this.sprite.x += this.patrolDirection.x * this.speed * deltaTime;
+      this.sprite.y += this.patrolDirection.y * this.speed * deltaTime;
+      
+      if (nearest && minDist < 300) this.state = "chase";
+      if (this.stateTime > 2000) {
+        this.patrolDirection = { x: Math.random()*2-1, y: Math.random()*2-1 };
+        this.stateTime = 0;
+      }
+    }
+    
+    else if (this.state === "chase" && nearest) {
+      const dx = nearest.sprite.x - this.sprite.x;
+      const dy = nearest.sprite.y - this.sprite.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      
+      if (dist > 150) {
+        this.sprite.x += (dx/dist) * this.speed * deltaTime;
+        this.sprite.y += (dy/dist) * this.speed * deltaTime;
+      }
+      
+      if (dist < this.attackRange && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
+        if (Math.random() < 0.7) {
+          this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, dx/dist, dy/dist);
+        } else {
+          this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, Math.random() < 0.3 ? "spin" : "regular", this);
+        }
+        this.currentBullets--;
+        this.lastAttackTime = time;
+      }
+      
+      if (minDist > 400 || this.health < this.maxHealth * 0.3) {
+        this.state = "retreat";
+        this.stateTime = 0;
+      }
     }
 
-    // Update UI
+    // Arena bounds
+    const toCenterX = this.sprite.x - ARENA_CENTER.x;
+    const toCenterY = this.sprite.y - ARENA_CENTER.y;
+    const distToCenter = Math.sqrt(toCenterX*toCenterX + toCenterY*toCenterY);
+    if (distToCenter > ARENA_RADIUS) {
+      this.sprite.x = ARENA_CENTER.x + (toCenterX/distToCenter) * ARENA_RADIUS;
+      this.sprite.y = ARENA_CENTER.y + (toCenterY/distToCenter) * ARENA_RADIUS;
+      this.state = "patrol";
+    }
+
     this.nameText.setPosition(this.sprite.x - 20, this.sprite.y - 30);
     this.updateHealthBar();
   }
 
-  handleCombat(target, distance, time, delta) {
-    const dirX = target.sprite.x - this.sprite.x;
-    const dirY = target.sprite.y - this.sprite.y;
-    const mag = Math.sqrt(dirX * dirX + dirY * dirY);
-    
-    if (mag > 0) {
-      this.lastFacing.x = dirX / mag;
-      this.lastFacing.y = dirY / mag;
-      
-      if (distance > this.attackRange) {
-        this.sprite.x += (this.lastFacing.x * this.speed * delta) / 1000;
-        this.sprite.y += (this.lastFacing.y * this.speed * delta) / 1000;
-      }
-    }
-
-    if (distance < this.attackRange && 
-        time - this.lastAttackTime > this.attackCooldown && 
-        this.currentBullets > 0) {
-      
-      if (Math.random() < 0.7) {
-        this.scene.combatManager.spawnProjectile(
-          this.sprite.x, 
-          this.sprite.y,
-          this, 
-          this.lastFacing.x, 
-          this.lastFacing.y
-        );
-      } else {
-        this.scene.combatManager.spawnMeleeAttack(
-          this.sprite.x, 
-          this.sprite.y,
-          Math.random() < 0.3 ? "spin" : "regular",
-          this
-        );
-      }
-      
-      this.currentBullets--;
-      this.lastAttackTime = time;
-    }
-  }
-
   updateHealthBar() {
     this.healthBar.clear();
-    const width = 40;
-    const height = 6;
+    const width = 40, height = 6;
     const x = this.sprite.x - width/2;
     const y = this.sprite.y - 40;
     
-    // Background
     this.healthBar.fillStyle(0x000000, 0.5);
     this.healthBar.fillRect(x, y, width, height);
     
-    // Health
     const healthWidth = Math.max(0, (this.health / this.maxHealth) * width);
     this.healthBar.fillStyle(0x00ff00, 1);
     this.healthBar.fillRect(x, y, healthWidth, height);
     
-    // Shield
     if (this.shield > 0) {
       this.healthBar.lineStyle(2, 0x00ffff, 1);
       this.healthBar.strokeCircle(this.sprite.x, this.sprite.y, 25);
