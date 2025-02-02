@@ -1,4 +1,4 @@
-import Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js';
+import Phaser from 'https://unpkg.com/phaser@3.55.2/dist/phaser.module.js';
 import { GAME_WIDTH, GAME_HEIGHT } from '../helpers.js';
 
 export default class WinScene extends Phaser.Scene {
