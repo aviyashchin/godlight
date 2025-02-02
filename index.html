@@ -30,9 +30,9 @@
       z-index: 1000;
     }
   </style>
-  <!-- Load EasyStar.js for pathfinding (stub) -->
+  <!-- Load EasyStar.js (stub for A* pathfinding) -->
   <script src="https://cdn.jsdelivr.net/npm/easystarjs@0.4.4/bin/easystar-0.4.4.js"></script>
-  <!-- Include Phaser.js -->
+  <!-- Include Phaser.js from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
 </head>
 <body>
@@ -76,23 +76,43 @@ const GOD_CONFIG = {
   Hades:     { health: 160, damage: 24, shield: 35, bullets: 10, bulletReload: 1000, shieldReload: 5000, zoneColor: 0x8b008b }
 };
 
-// For this prototype, we generate simple placeholder sprites for each god.
-// (In a complete game, you would load sprites from OpenGameArt.org or Itch.io.)
-const GOD_SPRITES = {
-  "Zeus": "zeus",
-  "Poseidon": "poseidon",
-  "Athena": "athena",
-  "Ares": "ares",
-  "Aphrodite": "aphrodite",
-  "Apollo": "apollo",
-  "Artemis": "artemis",
-  "Hephaestus": "hephaestus",
-  "Hermes": "hermes",
-  "Dionysus": "dionysus",
-  "Demeter": "demeter",
-  "Hera": "hera",
-  "Hades": "hades"
-};
+// We'll generate different polygon shapes for non-Hades combatants.
+// Hades will be represented by a circle.
+const GOD_SPRITES = {}; // We'll generate textures dynamically.
+const TEXTURE_KEYS = {};  // Map god name to generated texture key.
+ 
+// We'll use a helper to create a polygon texture.
+function createPolygonTexture(scene, key, sides, radius, color) {
+  let graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+  let angleStep = (2 * Math.PI) / sides;
+  let points = [];
+  for (let i = 0; i < sides; i++) {
+    let angle = i * angleStep - Math.PI / 2; // rotate so first point is upward
+    let x = radius * Math.cos(angle) + radius;
+    let y = radius * Math.sin(angle) + radius;
+    points.push(new Phaser.Geom.Point(x, y));
+  }
+  graphics.fillStyle(color, 1);
+  graphics.beginPath();
+  graphics.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    graphics.lineTo(points[i].x, points[i].y);
+  }
+  graphics.closePath();
+  graphics.fillPath();
+  // Generate texture with dimensions (radius*2)x(radius*2)
+  graphics.generateTexture(key, radius * 2, radius * 2);
+  graphics.destroy();
+}
+
+// For Hades, we create a circular texture.
+function createCircleTexture(scene, key, radius, color) {
+  let graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+  graphics.fillStyle(color, 1);
+  graphics.fillCircle(radius, radius, radius);
+  graphics.generateTexture(key, radius * 2, radius * 2);
+  graphics.destroy();
+}
 
 const BUTTONS = {
   A: 0,
@@ -129,7 +149,7 @@ const grid = [];
 for (let y = 0; y < gridRows; y++) {
   const col = [];
   for (let x = 0; x < gridCols; x++) {
-    col.push(0); // All tiles walkable.
+    col.push(0);
   }
   grid.push(col);
 }
@@ -234,7 +254,7 @@ class MeleeAttack {
     this.damage = damage;
     this.owner = owner;
     this.lifetime = 200; // ms
-    // TODO: Add particle effects here.
+    // TODO: Add particle effects.
   }
   update(delta) {
     this.lifetime -= delta;
@@ -259,13 +279,16 @@ class PowerUp {
   constructor(scene, x, y, type) {
     this.scene = scene;
     this.type = type;
-    // Placeholder: using the projectile texture; replace later.
+    // For now, use the projectile texture as a placeholder.
     this.sprite = scene.add.sprite(x, y, "projectile");
     this.sprite.setScale(0.5);
     this.lifetime = 10000; // ms
+    this.label = scene.add.text(x, y, "Shield +20", { fontSize: '12px', fill: '#fff' });
   }
   update(delta) {
     this.lifetime -= delta;
+    // Update label position.
+    this.label.setPosition(this.sprite.x, this.sprite.y - 20);
     if (this.lifetime <= 0) {
       this.destroy();
       return false;
@@ -277,6 +300,7 @@ class PowerUp {
   }
   destroy() {
     this.sprite.destroy();
+    this.label.destroy();
   }
 }
 
@@ -284,7 +308,7 @@ class PowerUp {
    Player Class Definition
    ====================================================================== */
 class Player {
-  constructor(scene, x, y, playerIndex) {
+  constructor(scene, x, y, playerIndex, shapeSides) {
     this.scene = scene;
     this.playerIndex = playerIndex;
     this.god = Phaser.Utils.Array.GetRandom(GODS).name;
@@ -301,8 +325,15 @@ class Player {
     this.lastReloadTime = 0;
     this.lastShieldReloadTime = 0;
     this.speed = PLAYER_SPEED;
-    this.sprite = scene.add.sprite(x, y, 'player');
-    this.sprite.setScale(0.75);
+    // For non-Hades, use a polygon texture; for Hades, use a circle.
+    if (this.god === "Hades") {
+      this.sprite = scene.add.sprite(x, y, "circle_hades");
+    } else {
+      // Use provided shapeSides.
+      this.sprite = scene.add.sprite(x, y, "poly_" + shapeSides);
+    }
+    this.sprite.setScale(1);
+    // Tint based on player index for differentiation.
     this.sprite.setTint(Phaser.Display.Color.GetColor(100 + playerIndex * 50, 100, 200));
     this.nameText = scene.add.text(x - 20, y - 50, "P" + playerIndex + ": " + this.god, { fontSize: '12px', fill: '#fff' });
     this.bulletText = scene.add.text(x - 20, y - 70, '', { fontSize: '12px', fill: '#fff' });
@@ -430,6 +461,16 @@ class Player {
       }
     }
     
+    // Clamp position within arena.
+    let center = this.scene.arenaCenter;
+    let dx = this.sprite.x - center.x;
+    let dy = this.sprite.y - center.y;
+    let dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > this.scene.arenaRadius) {
+      this.sprite.x = center.x + (dx / dist) * this.scene.arenaRadius;
+      this.sprite.y = center.y + (dy / dist) * this.scene.arenaRadius;
+    }
+    
     this.sprite.rotation = Math.atan2(this.lastFacing.y, this.lastFacing.x) + Math.PI/2;
     this.nameText.setText("P" + this.playerIndex + ": " + this.god);
     this.nameText.setPosition(this.sprite.x - 20, this.sprite.y - 60);
@@ -463,9 +504,11 @@ class Player {
     this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 80, barWidth, barHeight);
     this.healthBar.fillStyle(0x00ff00);
     this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 80, barWidth * healthPercent, barHeight);
-    let shieldPercent = Phaser.Math.Clamp(this.shield / this.maxShield, 0, 1);
-    this.healthBar.fillStyle(0x0000ff);
-    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 72, barWidth * shieldPercent, barHeight);
+    // Draw shield indicator if shield > 0.
+    if (this.shield > 0) {
+      this.healthBar.lineStyle(4, 0x0000ff, 1);
+      this.healthBar.strokeCircle(this.sprite.x, this.sprite.y, 40);
+    }
   }
   
   destroy() {
@@ -477,12 +520,12 @@ class Player {
 }
 
 /* ======================================================================
-   Enemy Class Definition (NPC with Home Zone & Expanded State Machine)
+   Enemy Class Definition
    ====================================================================== */
 class Enemy {
-  constructor(scene, x, y, index) {
+  constructor(scene, x, y, enemyIndex, shapeSides) {
     this.scene = scene;
-    this.enemyIndex = index;
+    this.enemyIndex = enemyIndex;
     let availableGods = GODS.filter(g => g.name !== "Hades");
     this.god = Phaser.Utils.Array.GetRandom(availableGods).name;
     let cfg = GOD_CONFIG[this.god] || { health: 100, damage: 10, shield: 20, bullets: 10, bulletReload: 1000, shieldReload: 5000 };
@@ -500,16 +543,19 @@ class Enemy {
     this.speed = ENEMY_SPEED;
     this.attackCooldown = 1000;
     this.lastAttackTime = 0;
-    // Assign home zone based on god.
     this.homeZone = this.scene.pieZones.find(z => z.god === this.god);
-    // Expanded state machine: states can be "home", "patrol", "chase", "retreat", "dodge".
     this.state = "patrol";
     this.stateTime = 0;
     this.patrolDirection = { x: Math.random()*2-1, y: Math.random()*2-1 };
-    this.sprite = scene.add.sprite(x, y, 'enemy');
-    this.sprite.setScale(0.66);
+    // For non-Hades, use a polygon texture; for Hades, use a circle.
+    if (this.god === "Hades") {
+      this.sprite = scene.add.sprite(x, y, "circle_hades");
+    } else {
+      this.sprite = scene.add.sprite(x, y, "poly_" + shapeSides);
+    }
+    this.sprite.setScale(1);
     this.sprite.setTint(0xff00ff);
-    this.nameText = scene.add.text(x - 10, y - 30, "E" + index + ": " + this.god, { fontSize: '12px', fill: '#fff' });
+    this.nameText = scene.add.text(x - 10, y - 30, "E" + enemyIndex + ": " + this.god, { fontSize: '12px', fill: '#fff' });
     this.healthBar = scene.add.graphics();
   }
   
@@ -521,7 +567,7 @@ class Enemy {
       this.lastReloadTime = time;
     }
     
-    // Find nearest target among players and other enemies.
+    // Find nearest target (players and other enemies).
     let nearest = null, minDist = Infinity;
     let allTargets = this.scene.players.concat(this.scene.enemies.filter(e => e !== this));
     for (let target of allTargets) {
@@ -531,7 +577,7 @@ class Enemy {
       if (dist < minDist) { minDist = dist; nearest = target; }
     }
     
-    // Determine state:
+    // Determine state.
     if (this.health < this.maxHealth * 0.3) {
       this.state = "retreat";
     } else if (this.scene.meleeAttacks.some(a => Phaser.Geom.Intersects.RectangleToRectangle(a.getBounds(), this.sprite.getBounds()))) {
@@ -544,9 +590,8 @@ class Enemy {
       this.state = "patrol";
     }
     
-    // Act based on state:
+    // Act based on state.
     if (this.state === "home" && this.homeZone) {
-      // Move toward the center of your home zone.
       let dx = this.homeZone.centerX - this.sprite.x;
       let dy = this.homeZone.centerY - this.sprite.y;
       let mag = Math.sqrt(dx*dx + dy*dy);
@@ -555,7 +600,6 @@ class Enemy {
         this.sprite.y += (dy / mag) * this.speed * deltaTime;
       }
     } else if (this.state === "patrol") {
-      // Random movement within territory. Change direction every 2 seconds.
       if (this.stateTime > 2000) {
         this.patrolDirection = { x: Math.random()*2-1, y: Math.random()*2-1 };
         this.stateTime = 0;
@@ -577,7 +621,6 @@ class Enemy {
         this.lastAttackTime = time;
       }
     } else if (this.state === "retreat") {
-      // Move away from the nearest target.
       if (nearest) {
         let dx = this.sprite.x - nearest.sprite.x;
         let dy = this.sprite.y - nearest.sprite.y;
@@ -588,8 +631,17 @@ class Enemy {
         }
       }
     } else if (this.state === "dodge") {
-      // Simple dodge: move perpendicular to current direction.
       this.sprite.x += this.speed * deltaTime;
+    }
+    
+    // Clamp position within the arena.
+    let center = this.scene.arenaCenter;
+    let dx = this.sprite.x - center.x;
+    let dy = this.sprite.y - center.y;
+    let dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > this.scene.arenaRadius) {
+      this.sprite.x = center.x + (dx / dist) * this.scene.arenaRadius;
+      this.sprite.y = center.y + (dy / dist) * this.scene.arenaRadius;
     }
     
     this.updateHealthBar();
@@ -610,6 +662,10 @@ class Enemy {
     this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 40, barWidth, barHeight);
     this.healthBar.fillStyle(0x00ff00);
     this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 40, barWidth * healthPercent, barHeight);
+    if (this.shield > 0) {
+      this.healthBar.lineStyle(4, 0x0000ff, 1);
+      this.healthBar.strokeCircle(this.sprite.x, this.sprite.y, 40);
+    }
   }
   
   destroy() {
@@ -629,18 +685,15 @@ class MainScene extends Phaser.Scene {
   }
   
   preload() {
-    // Create simple placeholder sprites for each god.
-    Object.keys(GOD_SPRITES).forEach(god => {
-      let graphics = this.make.graphics({ x: 0, y: 0, add: false });
-      let color = GOD_CONFIG[god] ? GOD_CONFIG[god].zoneColor : 0xffffff;
-      graphics.fillStyle(color, 1);
-      graphics.fillRect(0, 0, 64, 64);
-      // Draw a simple inner rectangle.
-      graphics.fillStyle(0x000000, 1);
-      graphics.fillRect(20, 20, 24, 24);
-      graphics.generateTexture(GOD_SPRITES[god], 64, 64);
-      graphics.destroy();
-    });
+    // Create placeholder polygon textures for non-Hades combatants.
+    // For each number of sides from 3 to 14, generate a texture.
+    for (let sides = 3; sides <= 14; sides++) {
+      let key = "poly_" + sides;
+      // We'll use a radius of 32 and use a neutral white color (the tint will be applied later).
+      createPolygonTexture(this, key, sides, 32, 0xffffff);
+    }
+    // Create a circular texture for Hades.
+    createCircleTexture(this, "circle_hades", 32, 0xffffff);
     // Create a placeholder projectile texture.
     let projGraphics = this.make.graphics({ x: 0, y: 0, add: false });
     projGraphics.fillStyle(0xffffff, 1);
@@ -651,6 +704,9 @@ class MainScene extends Phaser.Scene {
   
   create() {
     this.cameras.main.setBackgroundColor(0x222222);
+    // Define arena center and radius.
+    this.arenaCenter = { x: GAME_WIDTH/2, y: GAME_HEIGHT/2 };
+    this.arenaRadius = Math.min(GAME_WIDTH, GAME_HEIGHT)/2 - 20;
     
     // Add ASCII "GodLight" banner and credit.
     const asciiArt =
@@ -667,9 +723,8 @@ class MainScene extends Phaser.Scene {
     
     // Create pie zones for gods except Hades.
     this.pieZones = [];
-    let centerX = GAME_WIDTH / 2;
-    let centerY = GAME_HEIGHT / 2;
-    let arenaRadius = Math.min(GAME_WIDTH, GAME_HEIGHT) / 2 - 20;
+    let centerX = GAME_WIDTH/2, centerY = GAME_HEIGHT/2;
+    let arenaRadius = this.arenaRadius;
     let godsForZones = GODS.filter(g => g.name !== "Hades");
     const numZones = godsForZones.length;
     for (let i = 0; i < numZones; i++) {
@@ -687,14 +742,16 @@ class MainScene extends Phaser.Scene {
     this.powerUps = [];
     
     // Spawn exactly 13 combatants (one per god).
-    // First 4 gods are player-controlled; the remaining 9 are AI-controlled.
+    // First 4 gods in the GODS array are player-controlled; the rest are AI.
     this.players = [];
     this.enemies = [];
+    // We'll assign non-Hades combatants unique polygon shapes: for non-Hades, assign sides from 3 to 14.
+    let nonHadesIndex = 0;
     for (let i = 0; i < GODS.length; i++) {
       let godName = GODS[i].name;
       let spawnX, spawnY;
       if (godName === "Hades") {
-        let angle = Phaser.Math.FloatBetween(0, 2 * Math.PI);
+        let angle = Phaser.Math.FloatBetween(0, 2*Math.PI);
         let r = Phaser.Math.FloatBetween(0, 75);
         spawnX = centerX + r * Math.cos(angle);
         spawnY = centerY + r * Math.sin(angle);
@@ -711,9 +768,15 @@ class MainScene extends Phaser.Scene {
         }
       }
       if (i < 4) {
-        let player = new Player(this, spawnX, spawnY, i);
+        // Player-controlled.
+        let shapeSides = (godName === "Hades") ? 0 : (3 + nonHadesIndex++);
+        let player = new Player(this, spawnX, spawnY, i, shapeSides);
         player.god = godName;
-        player.sprite.setTexture(GOD_SPRITES[godName]);
+        if (godName === "Hades") {
+          player.sprite.setTexture("circle_hades");
+        } else {
+          player.sprite.setTexture("poly_" + shapeSides);
+        }
         player.homeZone = (godName === "Hades") ? this.hadesCircle : this.pieZones.find(z => z.god === godName);
         let cfg = GOD_CONFIG[godName];
         player.maxHealth = cfg.health;
@@ -725,9 +788,15 @@ class MainScene extends Phaser.Scene {
         player.currentBullets = cfg.bullets;
         this.players.push(player);
       } else {
-        let enemy = new Enemy(this, spawnX, spawnY, i);
+        // AI-controlled enemy.
+        let shapeSides = (godName === "Hades") ? 0 : (3 + nonHadesIndex++);
+        let enemy = new Enemy(this, spawnX, spawnY, i, shapeSides);
         enemy.god = godName;
-        enemy.sprite.setTexture(GOD_SPRITES[godName]);
+        if (godName === "Hades") {
+          enemy.sprite.setTexture("circle_hades");
+        } else {
+          enemy.sprite.setTexture("poly_" + shapeSides);
+        }
         enemy.homeZone = this.pieZones.find(z => z.god === godName);
         let cfg = GOD_CONFIG[godName];
         enemy.maxHealth = cfg.health;
@@ -819,7 +888,7 @@ class MainScene extends Phaser.Scene {
   spawnMeleeAttackHitbox(x, y, width, height, rotation, damage, shooter) {
     let melee = new MeleeAttack(this, x, y, width, height, rotation, damage, shooter);
     this.meleeAttacks.push(melee);
-    // TODO: Trigger particle effects for melee impact.
+    // TODO: Add particle effects for melee impact.
   }
   
   spawnProjectileAttack(x, y, shooter, dirX, dirY) {
@@ -842,6 +911,7 @@ class MainScene extends Phaser.Scene {
       } else {
         let allTargets = this.players.concat(this.enemies);
         for (let target of allTargets) {
+          // Allow friendly fire among players.
           if (target !== proj.owner &&
               Phaser.Geom.Intersects.RectangleToRectangle(proj.getBounds(), target.sprite.getBounds())) {
             let dmg = proj.damage;
@@ -884,7 +954,7 @@ class MainScene extends Phaser.Scene {
     this.pieZones.forEach(zone => zone.updateDisplay(this.players));
     this.hadesCircle.setPosition(GAME_WIDTH/2, GAME_HEIGHT/2);
     
-    // Update melee attacks so that each hitbox applies damage to all targets (not just one).
+    // Update melee attacks – apply damage to every combatant overlapping the hitbox.
     for (let i = this.meleeAttacks.length - 1; i >= 0; i--) {
       let attack = this.meleeAttacks[i];
       if (!attack.update(delta)) {
@@ -1077,23 +1147,23 @@ const game = new Phaser.Game(config);
   Additional Suggestions for a Playable Game:
   
   Enhanced AI:
-    - Integrate a detailed A* grid (using EasyStar.js) with obstacles, and call easyStar.findPath() for enemy navigation.
+    - Integrate a detailed A* grid (using EasyStar.js) with obstacles and call easyStar.findPath() for enemy navigation.
     - Expand enemy state machines to robustly handle patrol, chase, retreat, and dodge.
   
   Visual & Audio:
-    - Replace these placeholder sprites with polished assets from OpenGameArt.org or Itch.io, with smooth animations.
-    - Add particle effects (via Phaser’s particle emitters) for melee impacts and explosions.
+    - Replace placeholder textures with polished assets from OpenGameArt.org or Itch.io and add smooth animations.
+    - Add particle effects using Phaser’s particle emitters for melee impacts and explosions.
     - Incorporate an adaptive soundtrack and context-sensitive sound effects.
   
   Power-Ups & Special Moves:
-    - Expand the PowerUp class to support multiple boost types and add unique special moves for each god.
+    - Expand the PowerUp system to support multiple boost types and unique special moves per god.
   
   UI/HUD Enhancements:
     - Build a comprehensive HUD with detailed stats, contextual tooltips (using the hudTooltip div), and in-game tutorials.
   
   Code Organization & Performance:
     - Refactor code into separate modules for Player, Enemy, AI, UI, etc.
-    - Implement robust object pooling for transient objects to reduce garbage collection overhead.
+    - Implement robust object pooling for transient objects (melee hitboxes, projectiles, enemies) to reduce garbage collection overhead.
   
   Further playtesting and balancing will be essential.
 */
