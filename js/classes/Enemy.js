@@ -28,7 +28,8 @@ export default class Enemy {
       speed: 100,
       state: "patrol",
       stateTime: 0,
-      patrolDirection: { x: Math.random()*2-1, y: Math.random()*2-1 }
+      patrolDirection: { x: Math.random()*2-1, y: Math.random()*2-1 },
+      nextStateChange: Math.random() * 2000 + 1000
     });
 
     this.nameText = scene.add.text(x - 20, y - 30, "E: " + this.god, { fontSize: '12px', fill: '#fff' });
@@ -60,20 +61,25 @@ export default class Enemy {
       }
     });
 
-    // State machine
     const deltaTime = delta / 1000;
     this.stateTime += delta;
 
+    // State machine
     if (this.state === "patrol") {
+      // Move in patrol direction
       this.sprite.x += this.patrolDirection.x * this.speed * deltaTime;
       this.sprite.y += this.patrolDirection.y * this.speed * deltaTime;
       
+      // Change direction periodically or if near target
+      if (this.stateTime > this.nextStateChange) {
+        this.patrolDirection = { x: Math.random()*2-1, y: Math.random()*2-1 };
+        this.stateTime = 0;
+        this.nextStateChange = Math.random() * 2000 + 1000;
+      }
+      
+      // Transition to chase if target nearby
       if (nearest && minDist < 300) {
         this.state = "chase";
-        this.stateTime = 0;
-      }
-      if (this.stateTime > 2000) {
-        this.patrolDirection = { x: Math.random()*2-1, y: Math.random()*2-1 };
         this.stateTime = 0;
       }
     }
@@ -83,11 +89,13 @@ export default class Enemy {
       const dy = nearest.sprite.y - this.sprite.y;
       const dist = Math.sqrt(dx*dx + dy*dy);
       
+      // Move towards target if not too close
       if (dist > 150) {
         this.sprite.x += (dx/dist) * this.speed * deltaTime;
         this.sprite.y += (dy/dist) * this.speed * deltaTime;
       }
       
+      // Attack if in range and has ammo
       if (dist < this.attackRange && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
         if (Math.random() < 0.7) {
           this.scene.combatManager.spawnProjectile(
@@ -105,6 +113,7 @@ export default class Enemy {
         this.lastAttackTime = time;
       }
       
+      // Transition to retreat if needed
       if (minDist > 400 || this.health < this.maxHealth * 0.3) {
         this.state = "retreat";
         this.stateTime = 0;
@@ -112,11 +121,15 @@ export default class Enemy {
     }
     
     else if (this.state === "retreat") {
+      // Return to patrol after retreat time or if health recovered
       if (this.stateTime > 3000 || this.health > this.maxHealth * 0.7) {
         this.state = "patrol";
         this.stateTime = 0;
+        this.nextStateChange = Math.random() * 2000 + 1000;
+        this.patrolDirection = { x: Math.random()*2-1, y: Math.random()*2-1 };
       }
-      // Move away from nearest target if exists
+      
+      // Move away from nearest target
       if (nearest) {
         const dx = nearest.sprite.x - this.sprite.x;
         const dy = nearest.sprite.y - this.sprite.y;
