@@ -1,4 +1,7 @@
 # GodLight 
+Created by Aesop Yashchin
+
+# Built with love and cursed by the gods
 🕹️ Aesop's first Video Game 🎮
 [Play GodLight](https://godlight.vercel.app/)
 
@@ -33,10 +36,6 @@ Each god carries a curse that affects their gameplay:
 2. Select your god
 3. Learn to use their curse to your advantage
 4. Battle other players
-
-## Development
-Created by Aesop  
-Built with love and cursed by the gods
 
 ## Contributing
 Feel free to open issues or submit pull requests
