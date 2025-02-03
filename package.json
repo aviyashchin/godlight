@@ -4,7 +4,9 @@
     "description": "GodLight - A competitive multiplayer brawler featuring the gods of Mount Olympus.",
     "main": "index.html",
     "scripts": {
-      "start": "live-server --port=8080"
+      "start": "live-server --port=8080",
+      "build": "cp -r . dist/",
+      "dev": "live-server --port=8080"
     },
     "author": "Aesop Yashchin",
     "license": "MIT",
