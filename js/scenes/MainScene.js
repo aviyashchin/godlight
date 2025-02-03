@@ -35,6 +35,10 @@ export default class MainScene extends Phaser.Scene {
   }
   
   create() {
+    // Enable physics
+    this.physics.world.setBounds(0, 0, GAME_CONFIG.arena.WIDTH, GAME_CONFIG.arena.HEIGHT);
+    this.physics.world.setBoundsCollision(true);
+    
     this.cameras.main.setBackgroundColor(0x111111);
     
     // Create the arena

@@ -254,93 +254,39 @@ export default class Player {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
     
-    // Create hitbox
-    const hitbox = this.scene.add.rectangle(
-      this.sprite.x, 
-      this.sprite.y, 
-      80,  // width
-      40,  // height
-      0xffffff, // color
-      0 // alpha
+    // Use combat manager to spawn melee attack
+    this.scene.combatManager.spawnMeleeAttack(
+      this.sprite.x + this.lastFacing.x * 40,
+      this.sprite.y + this.lastFacing.y * 40,
+      'regular',
+      this
     );
-    
-    // Set hitbox properties
-    hitbox.rotation = Math.atan2(this.lastFacing.y, this.lastFacing.x);
-    hitbox.damage = this.damage * 1.2;
-    hitbox.owner = this;
-    
-    // Add physics
-    this.scene.physics.add.existing(hitbox);
-    hitbox.body.setCircle(20);
-    
-    // Destroy after short time
-    this.scene.time.delayedCall(200, () => {
-      hitbox.destroy();
-    });
   }
 
   meleeAttackSpin() {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
     
-    // Create hitbox
-    const hitbox = this.scene.add.circle(
-      this.sprite.x, 
-      this.sprite.y, 
-      60, // radius
-      0xffffff, // color
-      0 // alpha
+    // Use combat manager to spawn spin attack
+    this.scene.combatManager.spawnMeleeAttack(
+      this.sprite.x,
+      this.sprite.y,
+      'spin',
+      this
     );
-    
-    // Set hitbox properties
-    hitbox.damage = this.damage * 0.7;
-    hitbox.owner = this;
-    hitbox.rotationSpeed = 720; // degrees per second
-    
-    // Add physics
-    this.scene.physics.add.existing(hitbox);
-    
-    // Update rotation
-    this.scene.events.on('update', () => {
-      hitbox.rotation += hitbox.rotationSpeed * (this.scene.game.loop.delta / 1000);
-    });
-    
-    // Destroy after 1 second
-    this.scene.time.delayedCall(1000, () => {
-      hitbox.destroy();
-    });
   }
 
   projectileAttack() {
     if (this.currentBullets <= 0) return;
     this.currentBullets--;
     
-    // Create projectile
-    const projectile = this.scene.add.circle(
-      this.sprite.x,
-      this.sprite.y,
-      10, // radius
-      0xff0000 // color
+    // Use combat manager to spawn projectile
+    this.scene.combatManager.spawnProjectile(
+      this.sprite.x + this.lastFacing.x * 20,
+      this.sprite.y + this.lastFacing.y * 20,
+      this,
+      this.lastFacing.x,
+      this.lastFacing.y
     );
-    
-    // Set projectile properties
-    projectile.damage = this.damage;
-    projectile.owner = this;
-    
-    // Add physics
-    this.scene.physics.add.existing(projectile);
-    
-    // Set velocity
-    const speed = 300;
-    this.scene.physics.velocityFromRotation(
-      Math.atan2(this.lastFacing.y, this.lastFacing.x),
-      speed,
-      projectile.body.velocity
-    );
-    
-    // Destroy after 2 seconds or when it leaves the arena
-    this.scene.time.delayedCall(2000, () => {
-      projectile.destroy();
-    });
   }
 }
