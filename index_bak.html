@@ -29,6 +29,77 @@
       display: none;
       z-index: 1001;
     }
+    .cooldown-indicator {
+      position: absolute;
+      bottom: 50px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 5px;
+      border-radius: 5px;
+      font-family: monospace;
+      width: 150px;
+    }
+    .cooldown-bar {
+      width: 100%;
+      height: 5px;
+      background: #333;
+      border-radius: 3px;
+      margin-top: 2px;
+    }
+    .cooldown-progress {
+      height: 100%;
+      background: #0f0;
+      border-radius: 3px;
+      transition: width 0.1s linear;
+    }
+    /* Player 1 cooldowns */
+    #primary-cooldown-p0 { right: 10px; bottom: 120px; }
+    #special-cooldown-p0 { right: 170px; bottom: 120px; }
+    #ranged-cooldown-p0 { right: 330px; bottom: 120px; }
+    #dash-cooldown-p0 { right: 490px; bottom: 120px; }
+
+    /* Player 2 cooldowns */
+    #primary-cooldown-p1 { right: 10px; bottom: 50px; }
+    #special-cooldown-p1 { right: 170px; bottom: 50px; }
+    #ranged-cooldown-p1 { right: 330px; bottom: 50px; }
+    #dash-cooldown-p1 { right: 490px; bottom: 50px; }
+
+    #character-select {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.9);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      z-index: 1000;
+    }
+    .character-button {
+      margin: 5px;
+      padding: 10px 20px;
+      background: #333;
+      border: none;
+      color: white;
+      cursor: pointer;
+      border-radius: 5px;
+      font-size: 16px;
+      min-width: 150px;
+    }
+    .character-button:hover {
+      background: #444;
+    }
+    .character-button:disabled {
+      background: #666;
+      cursor: not-allowed;
+    }
+    .character-button .god-icon {
+      margin-right: 8px;
+    }
+    .hidden {
+      display: none;
+    }
   </style>
   <!-- EasyStar.js for pathfinding -->
   <script src="https://cdn.jsdelivr.net/npm/easystarjs@0.4.4/bin/easystar-0.4.4.js"></script>
@@ -37,6 +108,106 @@
 </head>
 <body>
 <div id="hudTooltip"></div>
+<div id="info">WASD: Move<br>Space: Attack<br>E: Special Ability<br>Shift: Dash<br>R: Ranged Attack</div>
+<div id="player-stats">Health: 100<br>Shield: 100</div>
+
+<!-- Player 1 Cooldowns -->
+<div id="primary-cooldown-p0" class="cooldown-indicator">
+  Primary Attack (Space)
+  <div class="cooldown-bar">
+    <div class="cooldown-progress" style="width: 100%"></div>
+  </div>
+</div>
+<div id="special-cooldown-p0" class="cooldown-indicator">
+  Special Ability (E)
+  <div class="cooldown-bar">
+    <div class="cooldown-progress" style="width: 100%"></div>
+  </div>
+</div>
+<div id="ranged-cooldown-p0" class="cooldown-indicator">
+  Ranged Attack (R)
+  <div class="cooldown-bar">
+    <div class="cooldown-progress" style="width: 100%"></div>
+  </div>
+</div>
+<div id="dash-cooldown-p0" class="cooldown-indicator">
+  Dash (Shift)
+  <div class="cooldown-bar">
+    <div class="cooldown-progress" style="width: 100%"></div>
+  </div>
+</div>
+
+<!-- Player 2 Cooldowns -->
+<div id="primary-cooldown-p1" class="cooldown-indicator">
+  Primary Attack (F)
+  <div class="cooldown-bar">
+    <div class="cooldown-progress" style="width: 100%"></div>
+  </div>
+</div>
+<div id="special-cooldown-p1" class="cooldown-indicator">
+  Special Ability (G)
+  <div class="cooldown-bar">
+    <div class="cooldown-progress" style="width: 100%"></div>
+  </div>
+</div>
+<div id="ranged-cooldown-p1" class="cooldown-indicator">
+  Ranged Attack (H)
+  <div class="cooldown-bar">
+    <div class="cooldown-progress" style="width: 100%"></div>
+  </div>
+</div>
+<div id="dash-cooldown-p1" class="cooldown-indicator">
+  Dash (Control)
+  <div class="cooldown-bar">
+    <div class="cooldown-progress" style="width: 100%"></div>
+  </div>
+</div>
+
+<div id="character-select">
+  <h2>Select Your God</h2>
+  <p>Player 1's Turn</p>
+  <div id="character-buttons">
+    <button class="character-button" onclick="selectCharacter('Zeus')">
+      <span class="god-icon">⚡</span>Zeus
+    </button>
+    <button class="character-button" onclick="selectCharacter('Poseidon')">
+      <span class="god-icon">🌊</span>Poseidon
+    </button>
+    <button class="character-button" onclick="selectCharacter('Athena')">
+      <span class="god-icon">🦉</span>Athena
+    </button>
+    <button class="character-button" onclick="selectCharacter('Ares')">
+      <span class="god-icon">⚔️</span>Ares
+    </button>
+    <button class="character-button" onclick="selectCharacter('Aphrodite')">
+      <span class="god-icon">💖</span>Aphrodite
+    </button>
+    <button class="character-button" onclick="selectCharacter('Apollo')">
+      <span class="god-icon">☀️</span>Apollo
+    </button>
+    <button class="character-button" onclick="selectCharacter('Artemis')">
+      <span class="god-icon">🌙</span>Artemis
+    </button>
+    <button class="character-button" onclick="selectCharacter('Hephaestus')">
+      <span class="god-icon">🔥</span>Hephaestus
+    </button>
+    <button class="character-button" onclick="selectCharacter('Hermes')">
+      <span class="god-icon">👟</span>Hermes
+    </button>
+    <button class="character-button" onclick="selectCharacter('Dionysus')">
+      <span class="god-icon">🍷</span>Dionysus
+    </button>
+    <button class="character-button" onclick="selectCharacter('Demeter')">
+      <span class="god-icon">🌾</span>Demeter
+    </button>
+    <button class="character-button" onclick="selectCharacter('Hera')">
+      <span class="god-icon">👑</span>Hera
+    </button>
+    <button class="character-button" onclick="selectCharacter('Hades')">
+      <span class="god-icon">💀</span>Hades
+    </button>
+  </div>
+</div>
 <script>
 // --- Helper functions for color adjustments ---
 function lightenColor(color, percent) {
@@ -341,860 +512,589 @@ class PowerUp {
 
 // --- Player Class ---
 class Player {
-  constructor(scene, x, y, playerIndex, shapeSides) {
+  constructor(scene, config) {
     this.scene = scene;
-    this.playerIndex = playerIndex;
-    this.god = Phaser.Utils.Array.GetRandom(GODS).name;
-    let cfg = GOD_CONFIG[this.god] || { health: 100, damage: 10, shield: 20, bullets: 10, bulletReload: 1000, shieldReload: 5000 };
-    this.maxHealth = cfg.health;
-    this.health = cfg.health;
-    this.damage = cfg.damage;
-    this.maxShield = cfg.shield;
-    this.shield = cfg.shield;
-    this.maxBullets = cfg.bullets;
-    this.currentBullets = cfg.bullets;
-    this.reloadRate = cfg.bulletReload;
-    this.shieldReloadRate = cfg.shieldReload;
-    this.lastReloadTime = 0;
-    this.lastShieldReloadTime = 0;
-    this.speed = PLAYER_SPEED;
-    if (this.god === "Hades") {
-      this.sprite = scene.add.sprite(x, y, "circle_hades");
-    } else {
-      this.sprite = scene.add.sprite(x, y, "poly_" + shapeSides);
-    }
-    this.sprite.setScale(0.5);
-    this.sprite.setTint(GOD_CONFIG[this.god].zoneColor);
-    this.nameText = scene.add.text(x - 20, y - 70, "P" + playerIndex + ": " + this.god, { fontSize: '12px', fill: '#fff' });
-    this.bulletText = scene.add.text(x - 20, y - 55, "Ammo: " + this.currentBullets, { fontSize: '12px', fill: '#fff' });
-    this.healthBar = scene.add.graphics();
-    this.gamepad = null;
-    this.keys = null;
-    this.lastAttackTime = 0;
-    this.attackCooldown = 500;
-    this.lastFacing = { x: 1, y: 0 };
-  }
-  update() {
-    const delta = this.scene.game.loop.delta;
-    const deltaTime = delta / 1000;
-    const currentTime = this.scene.time.now;
-    if (currentTime - this.lastReloadTime > this.reloadRate && this.currentBullets < this.maxBullets) {
-      this.currentBullets++;
-      this.lastReloadTime = currentTime;
-    }
-    if (currentTime - this.lastShieldReloadTime > this.shieldReloadRate && this.shield < this.maxShield) {
-      this.shield++;
-      this.lastShieldReloadTime = currentTime;
-    }
-    this.bulletText.setText("Ammo: " + this.currentBullets);
-    this.bulletText.setPosition(this.sprite.x - 20, this.sprite.y - 55);
+    this.god = config.god;
+    this.playerIndex = config.playerIndex;
     
-    if (!this.gamepad) {
-      if (!this.keys) {
-        if (this.playerIndex === 0) {
-          this.keys = this.scene.input.keyboard.addKeys({
-            left: Phaser.Input.Keyboard.KeyCodes.LEFT,
-            right: Phaser.Input.Keyboard.KeyCodes.RIGHT,
-            up: Phaser.Input.Keyboard.KeyCodes.UP,
-            down: Phaser.Input.Keyboard.KeyCodes.DOWN,
-            sprint: Phaser.Input.Keyboard.KeyCodes.SHIFT,
-            melee1: Phaser.Input.Keyboard.KeyCodes.SPACE,
-            melee2: Phaser.Input.Keyboard.KeyCodes.Q,
-            projectile: Phaser.Input.Keyboard.KeyCodes.E
-          });
-        } else if (this.playerIndex === 1) {
-          this.keys = this.scene.input.keyboard.addKeys({
-            left: Phaser.Input.Keyboard.KeyCodes.A,
-            right: Phaser.Input.Keyboard.KeyCodes.D,
-            up: Phaser.Input.Keyboard.KeyCodes.W,
-            down: Phaser.Input.Keyboard.KeyCodes.S,
-            sprint: Phaser.Input.Keyboard.KeyCodes.CONTROL,
-            melee1: Phaser.Input.Keyboard.KeyCodes.F,
-            melee2: Phaser.Input.Keyboard.KeyCodes.G,
-            projectile: Phaser.Input.Keyboard.KeyCodes.H
-          });
-        } else if (this.playerIndex === 2) {
-          this.keys = this.scene.input.keyboard.addKeys({
-            left: Phaser.Input.Keyboard.KeyCodes.J,
-            right: Phaser.Input.Keyboard.KeyCodes.L,
-            up: Phaser.Input.Keyboard.KeyCodes.I,
-            down: Phaser.Input.Keyboard.KeyCodes.K,
-            sprint: Phaser.Input.Keyboard.KeyCodes.U,
-            melee1: Phaser.Input.Keyboard.KeyCodes.O,
-            melee2: Phaser.Input.Keyboard.KeyCodes.P,
-            projectile: Phaser.Input.Keyboard.KeyCodes.OPEN_BRACKET
-          });
-        } else if (this.playerIndex === 3) {
-          this.keys = this.scene.input.keyboard.addKeys({
-            left: Phaser.Input.Keyboard.KeyCodes.NUMPAD_4,
-            right: Phaser.Input.Keyboard.KeyCodes.NUMPAD_6,
-            up: Phaser.Input.Keyboard.KeyCodes.NUMPAD_8,
-            down: Phaser.Input.Keyboard.KeyCodes.NUMPAD_2,
-            sprint: Phaser.Input.Keyboard.KeyCodes.NUMPAD_0,
-            melee1: Phaser.Input.Keyboard.KeyCodes.NUMPAD_1,
-            melee2: Phaser.Input.Keyboard.KeyCodes.NUMPAD_3,
-            projectile: Phaser.Input.Keyboard.KeyCodes.NUMPAD_5
-          });
-        }
-      }
-      let vx = 0, vy = 0;
-      if (this.keys.left.isDown) { vx = -this.speed; }
-      else if (this.keys.right.isDown) { vx = this.speed; }
-      if (this.keys.up.isDown) { vy = -this.speed; }
-      else if (this.keys.down.isDown) { vy = this.speed; }
-      if (this.keys.sprint.isDown) { vx *= 1.5; vy *= 1.5; }
-      if (vx !== 0 || vy !== 0) {
-        let mag = Math.sqrt(vx*vx + vy*vy);
-        this.lastFacing.x = vx/mag;
-        this.lastFacing.y = vy/mag;
-      }
-      this.sprite.x += vx * deltaTime;
-      this.sprite.y += vy * deltaTime;
-      if (this.keys.melee1.isDown && (currentTime - this.lastAttackTime > this.attackCooldown) && this.currentBullets > 0) {
-        this.meleeAttackRegular();
-        this.lastAttackTime = currentTime;
-      }
-      if (this.keys.melee2.isDown && (currentTime - this.lastAttackTime > this.attackCooldown) && this.currentBullets > 0) {
-        this.meleeAttackSpin();
-        this.lastAttackTime = currentTime;
-      }
-      if (this.keys.projectile.isDown && (currentTime - this.lastAttackTime > this.attackCooldown) && this.currentBullets > 0) {
-        this.projectileAttack();
-        this.lastAttackTime = currentTime;
-      }
-    } else {
-      let axisH = (this.gamepad.axes.length > 0) ? this.gamepad.axes[0].getValue() : 0;
-      let axisV = (this.gamepad.axes.length > 1) ? this.gamepad.axes[1].getValue() : 0;
-      let vx = axisH * this.speed;
-      let vy = axisV * this.speed;
-      if (this.gamepad.buttons[BUTTONS.A].pressed) { vx *= 1.5; vy *= 1.5; }
-      if (Math.abs(axisH) > 0.1 || Math.abs(axisV) > 0.1) {
-        let mag = Math.sqrt(axisH*axisH + axisV*axisV);
-        this.lastFacing.x = axisH/mag;
-        this.lastFacing.y = axisV/mag;
-      }
-      this.sprite.x += vx * deltaTime;
-      this.sprite.y += vy * deltaTime;
-      if (currentTime - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
-        if (this.gamepad.buttons[BUTTONS.B].pressed) {
-          this.meleeAttackRegular();
-          this.lastAttackTime = currentTime;
-        } else if (this.gamepad.buttons[BUTTONS.X].pressed) {
-          this.meleeAttackSpin();
-          this.lastAttackTime = currentTime;
-        } else if (this.gamepad.buttons[BUTTONS.Y].pressed) {
-          this.projectileAttack();
-          this.lastAttackTime = currentTime;
-        }
-      }
-    }
-    // Clamp within arena.
-    let dx = this.sprite.x - ARENA_CENTER.x;
-    let dy = this.sprite.y - ARENA_CENTER.y;
-    let dist = Math.sqrt(dx*dx + dy*dy);
-    if (dist > ARENA_RADIUS) {
-      this.sprite.x = ARENA_CENTER.x + (dx/dist) * ARENA_RADIUS;
-      this.sprite.y = ARENA_CENTER.y + (dy/dist) * ARENA_RADIUS;
-    }
-    this.sprite.rotation = Math.atan2(this.lastFacing.y, this.lastFacing.x) + Math.PI/2;
-    this.nameText.setText("P" + this.playerIndex + ": " + this.god);
-    this.nameText.setPosition(this.sprite.x - 20, this.sprite.y - 70);
-    this.updateHealthBar();
-  }
-  meleeAttackRegular() {
-    if (this.currentBullets <= 0) return;
-    this.currentBullets--;
-    this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "regular", this);
-  }
-  meleeAttackSpin() {
-    if (this.currentBullets <= 0) return;
-    this.currentBullets--;
-    this.scene.spawnMeleeAttack(this.sprite.x, this.sprite.y, "spin", this);
-  }
-  projectileAttack() {
-    if (this.currentBullets <= 0) return;
-    this.currentBullets--;
-    this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, this.lastFacing.x, this.lastFacing.y);
-  }
-  updateHealthBar() {
-    this.healthBar.clear();
-    const barWidth = 40, barHeight = 6;
-    let healthPercent = Phaser.Math.Clamp(this.health/this.maxHealth, 0, 1);
-    this.healthBar.fillStyle(0xff0000);
-    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 80, barWidth, barHeight);
-    this.healthBar.fillStyle(0x00ff00);
-    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 80, barWidth * healthPercent, barHeight);
-    if (this.shield > 0) {
-      this.healthBar.lineStyle(4, 0x0000ff, 1);
-      this.healthBar.strokeCircle(this.sprite.x, this.sprite.y, 30);
-    }
-  }
-  destroy() {
-    this.sprite.destroy();
-    this.nameText.destroy();
-    this.bulletText.destroy();
-    this.healthBar.destroy();
-  }
-}
-
-// --- Enemy Class ---
-class Enemy {
-  constructor(scene, x, y, enemyIndex, shapeSides) {
-    this.scene = scene;
-    this.enemyIndex = enemyIndex;
-    let availableGods = GODS.filter(g => g.name !== "Hades");
-    this.god = Phaser.Utils.Array.GetRandom(availableGods).name;
-    let cfg = GOD_CONFIG[this.god] || { health: 100, damage: 10, shield: 20, bullets: 10, bulletReload: 1000, shieldReload: 5000 };
-    this.maxHealth = cfg.health;
-    this.health = cfg.health;
-    this.damage = cfg.damage;
-    this.maxShield = cfg.shield;
-    this.shield = cfg.shield;
-    this.maxBullets = cfg.bullets;
-    this.currentBullets = cfg.bullets;
-    this.reloadRate = cfg.bulletReload;
-    this.shieldReloadRate = cfg.shieldReload;
-    this.lastReloadTime = 0;
-    this.lastShieldReloadTime = 0;
-    this.speed = ENEMY_SPEED;
-    this.attackCooldown = 1000;
-    this.lastAttackTime = 0;
-    this.homeZone = this.scene.pieZones.find(z => z.god === this.god);
-    this.state = "patrol";
-    this.stateTime = 0;
-    this.patrolDirection = { x: Math.random()*2-1, y: Math.random()*2-1 };
-    if (this.god === "Hades") {
-      this.sprite = scene.add.sprite(x, y, "circle_hades");
-    } else {
-      this.sprite = scene.add.sprite(x, y, "poly_" + shapeSides);
-    }
-    this.sprite.setScale(0.5);
-    this.sprite.setTint(GOD_CONFIG[this.god].zoneColor);
-    this.nameText = scene.add.text(x - 10, y - 30, "E" + enemyIndex + ": " + this.god, { fontSize: '12px', fill: '#fff' });
-    this.healthBar = scene.add.graphics();
-  }
-  
-  update(time, delta) {
-    const deltaTime = delta / 1000;
-    this.stateTime += delta;
-    if (time - this.lastReloadTime > this.reloadRate && this.currentBullets < this.maxBullets) {
-      this.currentBullets++;
-      this.lastReloadTime = time;
-    }
+    // Create sprite
+    this.sprite = scene.add.circle(config.x, config.y, 25, 0x00ff00);
+    scene.physics.add.existing(this.sprite);
     
-    // Use EasyStar for pathfinding in chase state.
-    let path = null;
-    if (this.state === "chase") {
-      // Find nearest target among players and enemies.
-      let nearest = null, minDist = Infinity;
-      let allTargets = this.scene.players.concat(this.scene.enemies.filter(e => e !== this));
-      for (let target of allTargets) {
-        let dx = target.sprite.x - this.sprite.x;
-        let dy = target.sprite.y - this.sprite.y;
-        let dist = Math.sqrt(dx*dx+dy*dy);
-        if (dist < minDist) { minDist = dist; nearest = target; }
-      }
-      if (nearest) {
-        // Convert positions to grid indices.
-        let startX = Math.floor(this.sprite.x / 32);
-        let startY = Math.floor(this.sprite.y / 32);
-        let endX = Math.floor(nearest.sprite.x / 32);
-        let endY = Math.floor(nearest.sprite.y / 32);
-        easyStar.findPath(startX, startY, endX, endY, (foundPath) => {
-          if (foundPath !== null && foundPath.length > 1) {
-            path = foundPath;
-          }
-        });
-        easyStar.calculate();
-      }
-    }
-    
-    // Determine state.
-    let nearest = null, minDist = Infinity;
-    let allTargets = this.scene.players.concat(this.scene.enemies.filter(e => e !== this));
-    for (let target of allTargets) {
-      let dx = target.sprite.x - this.sprite.x;
-      let dy = target.sprite.y - this.sprite.y;
-      let dist = Math.sqrt(dx*dx+dy*dy);
-      if (dist < minDist) { minDist = dist; nearest = target; }
-    }
-    if (this.health < this.maxHealth * 0.3) {
-      this.state = "retreat";
-    } else if (this.scene.meleeAttacks.some(a => Phaser.Geom.Intersects.RectangleToRectangle(a.getBounds(), this.sprite.getBounds()))) {
-      this.state = "dodge";
-    } else if (nearest && minDist < 500) {
-      this.state = "chase";
-    } else if (!this.homeZone || !this.homeZone.contains(this.sprite.x, this.sprite.y)) {
-      this.state = "home";
-    } else {
-      this.state = "patrol";
-    }
-    
-    // Act based on state.
-    if (this.state === "home" && this.homeZone) {
-      let dx = this.homeZone.centerX - this.sprite.x;
-      let dy = this.homeZone.centerY - this.sprite.y;
-      let mag = Math.sqrt(dx*dx+dy*dy);
-      if (mag > 0) {
-        this.sprite.x += (dx/mag) * this.speed * deltaTime;
-        this.sprite.y += (dy/mag) * this.speed * deltaTime;
-      }
-    } else if (this.state === "patrol") {
-      if (this.stateTime > 2000) {
-        this.patrolDirection = { x: Math.random()*2-1, y: Math.random()*2-1 };
-        this.stateTime = 0;
-      }
-      this.sprite.x += this.patrolDirection.x * this.speed * deltaTime;
-      this.sprite.y += this.patrolDirection.y * this.speed * deltaTime;
-    } else if (this.state === "chase") {
-      if (path && path.length > 1) {
-        // Follow the first step of the path.
-        let nextStep = path[1];
-        let targetX = nextStep.x * 32 + 16;
-        let targetY = nextStep.y * 32 + 16;
-        let dx = targetX - this.sprite.x;
-        let dy = targetY - this.sprite.y;
-        let mag = Math.sqrt(dx*dx+dy*dy);
-        if (mag > 0) {
-          this.sprite.x += (dx/mag) * this.speed * deltaTime;
-          this.sprite.y += (dy/mag) * this.speed * deltaTime;
-        }
-      } else if (nearest) {
-        let dx = nearest.sprite.x - this.sprite.x;
-        let dy = nearest.sprite.y - this.sprite.y;
-        let mag = Math.sqrt(dx*dx+dy*dy);
-        if (mag > 0) {
-          this.sprite.x += (dx/mag) * this.speed * deltaTime;
-          this.sprite.y += (dy/mag) * this.speed * deltaTime;
-        }
-      }
-      if (minDist < 300 && time - this.lastAttackTime > this.attackCooldown && this.currentBullets > 0) {
-        this.currentBullets--;
-        let dx = nearest.sprite.x - this.sprite.x;
-        let dy = nearest.sprite.y - this.sprite.y;
-        let mag = Math.sqrt(dx*dx+dy*dy);
-        let dirX = dx/mag, dirY = dy/mag;
-        this.scene.spawnProjectileAttack(this.sprite.x, this.sprite.y, this, dirX, dirY);
-        this.lastAttackTime = time;
-      }
-    } else if (this.state === "retreat") {
-      if (nearest) {
-        let dx = this.sprite.x - nearest.sprite.x;
-        let dy = this.sprite.y - nearest.sprite.y;
-        let mag = Math.sqrt(dx*dx+dy*dy);
-        if (mag > 0) {
-          this.sprite.x += (dx/mag) * this.speed * deltaTime;
-          this.sprite.y += (dy/mag) * this.speed * deltaTime;
-        }
-      }
-    } else if (this.state === "dodge") {
-      this.sprite.x += this.speed * deltaTime;
-    }
-    
-    // Clamp within arena.
-    let dxClamp = this.sprite.x - ARENA_CENTER.x;
-    let dyClamp = this.sprite.y - ARENA_CENTER.y;
-    let distClamp = Math.sqrt(dxClamp*dxClamp+dyClamp*dyClamp);
-    if (distClamp > ARENA_RADIUS) {
-      this.sprite.x = ARENA_CENTER.x + (dxClamp/distClamp) * ARENA_RADIUS;
-      this.sprite.y = ARENA_CENTER.y + (dyClamp/distClamp) * ARENA_RADIUS;
-    }
-    
-    this.updateHealthBar();
-    this.nameText.setPosition(this.sprite.x - 10, this.sprite.y - 30);
-    if (this.health <= 0) {
-      this.sprite.destroy();
-      this.nameText.destroy();
-      this.healthBar.destroy();
-      this.scene.enemies = this.scene.enemies.filter(e => e !== this);
-    }
-  }
-  
-  updateHealthBar() {
-    this.healthBar.clear();
-    const barWidth = 30, barHeight = 5;
-    let healthPercent = Phaser.Math.Clamp(this.health/this.maxHealth, 0, 1);
-    this.healthBar.fillStyle(0xff0000);
-    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 40, barWidth, barHeight);
-    this.healthBar.fillStyle(0x00ff00);
-    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 40, barWidth * healthPercent, barHeight);
-    if (this.shield > 0) {
-      this.healthBar.lineStyle(4, 0x0000ff, 1);
-      this.healthBar.strokeCircle(this.sprite.x, this.sprite.y, 30);
-    }
-  }
-  
-  destroy() {
-    this.sprite.destroy();
-    this.nameText.destroy();
-    this.bulletText.destroy();
-    this.healthBar.destroy();
-  }
-}
-
-// --- Main Scene ---
-class MainScene extends Phaser.Scene {
-  constructor() {
-    super('MainScene');
-  }
-  
-  preload() {
-    // Generate polygon textures for non-Hades (3 to 14 sides).
-    for (let sides = 3; sides <= 14; sides++) {
-      let key = "poly_" + sides;
-      createPolygonTexture(this, key, sides, 32, 0xffffff);
-    }
-    // Generate a circular texture for Hades.
-    createCircleTexture(this, "circle_hades", 32, 0xffffff);
-    // Create a placeholder projectile texture.
-    let projGraphics = this.make.graphics({ x: 0, y: 0, add: false });
-    projGraphics.fillStyle(0xffffff, 1);
-    projGraphics.fillRect(0, 0, 16, 16);
-    projGraphics.generateTexture("projectile", 16, 16);
-    projGraphics.destroy();
-    
-    // (In production, load polished assets and animations from asset packs.)
-    
-    // Optionally load audio assets:
-    // this.load.audio('bgMusic', 'assets/bg_music.mp3');
-  }
-  
-  create() {
-    this.cameras.main.setBackgroundColor(0x111111);
-    ARENA_CENTER.x = GAME_WIDTH / 2;
-    ARENA_CENTER.y = GAME_HEIGHT / 2;
-    
-    // Start background music (if loaded).
-    // let music = this.sound.add('bgMusic');
-    // music.play({ loop: true });
-    
-    // Create the GodLight title (fixed to camera).
-    let asciiArt =
-`                  _ _ _       _     _   
-                 | | (_)     | |   | |  
-   __ _  ___   __| | |_  __ _| |__ | |_ 
-  / _\` |/ _ \\ / _\` | | |/ _\` | \'_ \\| __|
- | (_| | (_) | (_| | | | (_| | | | | |_ 
-  \\__, |\___/ \\__,_|_|_|\\__, |_| |_|\\__|
-   __/ |                 __/ |          
-  |___/                 |___/           `;
-    let titleText = this.add.text(GAME_WIDTH/2 - 300, 10, asciiArt, {
-      fontFamily: 'monospace',
-      fontSize: '20px',
+    // Add name text
+    this.nameText = scene.add.text(config.x, config.y - 40, `P${this.playerIndex + 1} - ${this.god}`, {
+      fontSize: '16px',
       fill: '#fff'
     });
-    titleText.setDepth(1000);
-    titleText.setScrollFactor(0);
+    this.nameText.setOrigin(0.5);
     
-    // Create a dedicated HUD panel at the bottom.
-    this.hudPanel = this.add.rectangle(10, GAME_HEIGHT - 100, GAME_WIDTH - 20, 90, 0x000000, 0.5)
-      .setOrigin(0, 0)
-      .setDepth(1000);
-    this.hudText = this.add.text(20, GAME_HEIGHT - 90, "", { fontSize: '16px', fill: '#fff' })
-      .setDepth(1000);
+    // Add health bar
+    this.healthBar = scene.add.graphics();
     
-    // Create central Hades realm.
-    this.hadesCircle = this.add.circle(ARENA_CENTER.x, ARENA_CENTER.y, 75, GOD_CONFIG["Hades"].zoneColor, 0.5);
+    // Initialize stats
+    this.maxHealth = 100;
+    this.health = this.maxHealth;
+    this.maxShield = 100;
+    this.shield = 0;
+    this.speed = 200;
+    this.damage = 20;
     
-    // Create pie zones for gods except Hades.
-    this.pieZones = [];
-    let centerX = ARENA_CENTER.x, centerY = ARENA_CENTER.y;
-    let godsForZones = GODS.filter(g => g.name !== "Hades");
-    const numZones = godsForZones.length;
-    for (let i = 0; i < numZones; i++) {
-      let startAngle = i * (2*Math.PI/numZones);
-      let endAngle = (i+1) * (2*Math.PI/numZones);
-      let god = godsForZones[i].name;
-      let zoneColor = GOD_CONFIG[god] ? GOD_CONFIG[god].zoneColor : 0xffffff;
-      let zone = new PieZone(this, centerX, centerY, ARENA_RADIUS, startAngle, endAngle, god, zoneColor);
-      this.pieZones.push(zone);
+    // Initialize cooldowns
+    this.lastPrimaryAttack = 0;
+    this.lastSpecialAbility = 0;
+    this.lastRangedTime = 0;
+    this.lastDashTime = 0;
+    
+    // Setup controls
+    this.controls = config.controls;
+    this.keys = {};
+    Object.values(this.controls).forEach(key => {
+      this.keys[key.toLowerCase()] = false;
+    });
+    
+    // Initialize velocity
+    this.sprite.body.setVelocity(0, 0);
+  }
+  
+  handleInput(event) {
+    const key = event.key.toLowerCase();
+    if (Object.values(this.controls).map(k => k.toLowerCase()).includes(key)) {
+      this.keys[key] = event.type === 'keydown';
+      
+      // Handle abilities
+      if (event.type === 'keydown') {
+        const currentTime = Date.now();
+        
+        // Primary attack
+        if (key === this.controls.primary.toLowerCase() && 
+          (!this.lastPrimaryAttack || currentTime - this.lastPrimaryAttack > GOD_CONFIG[this.god].cooldowns.primaryAttack)) {
+          this.lastPrimaryAttack = currentTime;
+          // Implement primary attack
+        }
+        
+        // Special ability
+        if (key === this.controls.special.toLowerCase() && 
+          (!this.lastSpecialAbility || currentTime - this.lastSpecialAbility > GOD_CONFIG[this.god].cooldowns.specialAbility)) {
+          this.lastSpecialAbility = currentTime;
+          // Implement special ability
+        }
+        
+        // Ranged attack
+        if (key === this.controls.ranged.toLowerCase() && 
+          (!this.lastRangedTime || currentTime - this.lastRangedTime > GOD_CONFIG[this.god].cooldowns.rangedAttack)) {
+          this.lastRangedTime = currentTime;
+          // Implement ranged attack
+        }
+        
+        // Dash
+        if (key === this.controls.dash.toLowerCase() && 
+          (!this.lastDashTime || currentTime - this.lastDashTime > GOD_CONFIG[this.god].cooldowns.dash)) {
+          this.lastDashTime = currentTime;
+          // Implement dash
+        }
+      }
+    }
+  }
+  
+  update() {
+    // Update position of name and health bar
+    this.nameText.setPosition(this.sprite.x, this.sprite.y - 40);
+    this.updateHealthBar();
+    
+    // Handle movement
+    let dx = 0;
+    let dy = 0;
+    
+    if (this.keys[this.controls.up.toLowerCase()]) dy -= 1;
+    if (this.keys[this.controls.down.toLowerCase()]) dy += 1;
+    if (this.keys[this.controls.left.toLowerCase()]) dx -= 1;
+    if (this.keys[this.controls.right.toLowerCase()]) dx += 1;
+    
+    // Normalize diagonal movement
+    if (dx !== 0 && dy !== 0) {
+      dx *= Math.SQRT1_2;
+      dy *= Math.SQRT1_2;
     }
     
-    // Initialize arrays.
-    this.meleeAttacks = [];
-    this.projectiles = [];
-    this.powerUps = [];
+    // Apply movement
+    this.sprite.body.setVelocity(dx * this.speed, dy * this.speed);
     
-    // Spawn 13 combatants (one per god).
+    // Keep player in arena
+    const dist = Phaser.Math.Distance.Between(
+      this.sprite.x, this.sprite.y,
+      ARENA_CENTER.x, ARENA_CENTER.y
+    );
+    
+    if (dist > ARENA_RADIUS) {
+      const angle = Phaser.Math.Angle.Between(
+        ARENA_CENTER.x, ARENA_CENTER.y,
+        this.sprite.x, this.sprite.y
+      );
+      this.sprite.x = ARENA_CENTER.x + Math.cos(angle) * ARENA_RADIUS;
+      this.sprite.y = ARENA_CENTER.y + Math.sin(angle) * ARENA_RADIUS;
+    }
+  }
+  
+  takeDamage(amount) {
+    if (this.shield > 0) {
+      this.shield -= amount;
+      if (this.shield < 0) {
+        this.health += this.shield;
+        this.shield = 0;
+      }
+    } else {
+      this.health -= amount;
+    }
+    
+    if (this.health <= 0) {
+      this.destroy();
+    }
+  }
+  
+  updateHealthBar() {
+    this.healthBar.clear();
+    
+    const barWidth = 50;
+    const barHeight = 5;
+    const healthPercent = this.health / this.maxHealth;
+    const shieldPercent = this.shield / this.maxShield;
+    
+    // Background
+    this.healthBar.fillStyle(0xff0000);
+    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 30, barWidth, barHeight);
+    
+    // Health
+    this.healthBar.fillStyle(0x00ff00);
+    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 30, barWidth * healthPercent, barHeight);
+    
+    // Shield indicator
+    if (this.shield > 0) {
+      this.healthBar.lineStyle(2, 0x0000ff, 1);
+      this.healthBar.strokeCircle(this.sprite.x, this.sprite.y, 30);
+    }
+  }
+  
+  destroy() {
+    this.sprite.destroy();
+    this.nameText.destroy();
+    this.healthBar.destroy();
+  }
+}
+
+class Enemy {
+  constructor(scene, config) {
+    this.scene = scene;
+    this.god = config.god;
+    
+    // Create sprite
+    this.sprite = scene.add.circle(config.x, config.y, 20, 0xff0000);
+    scene.physics.add.existing(this.sprite);
+    
+    // Add name text
+    this.nameText = scene.add.text(config.x, config.y - 40, this.god, {
+      fontSize: '16px',
+      fill: '#fff'
+    });
+    this.nameText.setOrigin(0.5);
+    
+    // Add health bar
+    this.healthBar = scene.add.graphics();
+    
+    // Initialize stats
+    this.maxHealth = 100;
+    this.health = this.maxHealth;
+    this.shield = 0;
+    this.speed = 150;
+    this.damage = 10;
+    
+    // Initialize state
+    this.lastAttackTime = 0;
+    this.lastSpecialTime = 0;
+    this.lastRangedTime = 0;
+    this.lastDashTime = 0;
+    this.attackCooldown = 1000;
+    this.specialCooldown = 5000;
+    this.rangedCooldown = 3000;
+    this.dashCooldown = 2000;
+    
+    // AI state
+    this.target = null;
+    this.state = 'idle';
+    this.lastStateChange = Date.now();
+    this.stateTimeout = 2000;
+  }
+  
+  update() {
+    // Update position of name and health bar
+    this.nameText.setPosition(this.sprite.x, this.sprite.y - 40);
+    this.updateHealthBar();
+    
+    // Basic AI behavior
+    const currentTime = Date.now();
+    
+    // State machine
+    if (currentTime - this.lastStateChange > this.stateTimeout) {
+      this.state = Math.random() < 0.3 ? 'chase' : 'idle';
+      this.lastStateChange = currentTime;
+      this.stateTimeout = 2000 + Math.random() * 3000;
+      
+      // Find nearest player when entering chase state
+      if (this.state === 'chase') {
+        let nearestDist = Infinity;
+        this.scene.players.forEach(player => {
+          const dist = Phaser.Math.Distance.Between(
+            this.sprite.x, this.sprite.y,
+            player.sprite.x, player.sprite.y
+          );
+          if (dist < nearestDist) {
+            nearestDist = dist;
+            this.target = player;
+          }
+        });
+      }
+    }
+    
+    // Execute current state
+    if (this.state === 'chase' && this.target) {
+      // Move towards target
+      const angle = Phaser.Math.Angle.Between(
+        this.sprite.x, this.sprite.y,
+        this.target.sprite.x, this.target.sprite.y
+      );
+      
+      this.sprite.body.velocity.x = Math.cos(angle) * this.speed;
+      this.sprite.body.velocity.y = Math.sin(angle) * this.speed;
+      
+      // Attack if in range
+      const distToTarget = Phaser.Math.Distance.Between(
+        this.sprite.x, this.sprite.y,
+        this.target.sprite.x, this.target.sprite.y
+      );
+      
+      if (distToTarget < 50 && currentTime - this.lastAttackTime > this.attackCooldown) {
+        this.attack();
+      }
+    } else {
+      // Idle behavior - slow to a stop
+      this.sprite.body.velocity.x *= 0.95;
+      this.sprite.body.velocity.y *= 0.95;
+    }
+  }
+  
+  attack() {
+    if (!this.target) return;
+    
+    this.lastAttackTime = Date.now();
+    this.target.takeDamage(this.damage);
+  }
+  
+  takeDamage(amount) {
+    if (this.shield > 0) {
+      this.shield -= amount;
+      if (this.shield < 0) {
+        this.health += this.shield;
+        this.shield = 0;
+      }
+    } else {
+      this.health -= amount;
+    }
+    
+    if (this.health <= 0) {
+      this.destroy();
+    }
+  }
+  
+  updateHealthBar() {
+    this.healthBar.clear();
+    
+    const barWidth = 40;
+    const barHeight = 5;
+    const healthPercent = this.health / this.maxHealth;
+    
+    // Background
+    this.healthBar.fillStyle(0xff0000);
+    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 30, barWidth, barHeight);
+    
+    // Health
+    this.healthBar.fillStyle(0x00ff00);
+    this.healthBar.fillRect(this.sprite.x - barWidth/2, this.sprite.y - 30, barWidth * healthPercent, barHeight);
+    
+    // Shield indicator
+    if (this.shield > 0) {
+      this.healthBar.lineStyle(2, 0x0000ff, 1);
+      this.healthBar.strokeCircle(this.sprite.x, this.sprite.y, 25);
+    }
+  }
+  
+  destroy() {
+    this.sprite.destroy();
+    this.nameText.destroy();
+    this.healthBar.destroy();
+  }
+}
+
+function handleCombat() {
+    const currentTime = Date.now();
+    
+    this.players.forEach(player => {
+        // Calculate recharge bonus
+        const primaryReady = !player.lastPrimaryAttack || 
+            (currentTime - player.lastPrimaryAttack) > GOD_CONFIG[player.god].cooldowns.primaryAttack;
+        const rangedReady = !player.lastRangedTime || 
+            (currentTime - player.lastRangedTime) > GOD_CONFIG[player.god].cooldowns.rangedAttack;
+        const dashReady = !player.lastDashTime ||
+            (currentTime - player.lastDashTime) > GOD_CONFIG[player.god].cooldowns.dash;
+        const notMoving = !player.keys['w'] && !player.keys['a'] && !player.keys['s'] && !player.keys['d'];
+        
+        let rechargeBonus = 1;
+        if (primaryReady) rechargeBonus *= 2;
+        if (primaryReady && notMoving) rechargeBonus *= 2;
+
+        // Update cooldown UI for this player
+        const cooldownElements = {
+            primary: document.getElementById(`primary-cooldown-p${player.playerIndex}`),
+            special: document.getElementById(`special-cooldown-p${player.playerIndex}`),
+            ranged: document.getElementById(`ranged-cooldown-p${player.playerIndex}`),
+            dash: document.getElementById(`dash-cooldown-p${player.playerIndex}`)
+        };
+
+        // Primary attack cooldown
+        if (cooldownElements.primary) {
+            const primaryProgress = cooldownElements.primary.querySelector('.cooldown-progress');
+            if (player.lastPrimaryAttack) {
+                const elapsed = currentTime - player.lastPrimaryAttack;
+                const progress = Math.min(elapsed / GOD_CONFIG[player.god].cooldowns.primaryAttack, 1);
+                primaryProgress.style.width = `${progress * 100}%`;
+            }
+        }
+
+        // Special ability cooldown
+        if (cooldownElements.special) {
+            const specialProgress = cooldownElements.special.querySelector('.cooldown-progress');
+            if (player.lastSpecialAbility) {
+                const elapsed = currentTime - player.lastSpecialAbility;
+                const progress = Math.min(elapsed / (GOD_CONFIG[player.god].cooldowns.specialAbility / rechargeBonus), 1);
+                specialProgress.style.width = `${progress * 100}%`;
+            }
+        }
+
+        // Ranged attack cooldown
+        if (cooldownElements.ranged) {
+            const rangedProgress = cooldownElements.ranged.querySelector('.cooldown-progress');
+            if (player.lastRangedTime) {
+                const elapsed = currentTime - player.lastRangedTime;
+                const progress = Math.min(elapsed / GOD_CONFIG[player.god].cooldowns.rangedAttack, 1);
+                rangedProgress.style.width = `${progress * 100}%`;
+            }
+        }
+
+        // Dash cooldown
+        if (cooldownElements.dash) {
+            const dashProgress = cooldownElements.dash.querySelector('.cooldown-progress');
+            if (player.lastDashTime) {
+                const elapsed = currentTime - player.lastDashTime;
+                const progress = Math.min(elapsed / GOD_CONFIG[player.god].cooldowns.dash, 1);
+                dashProgress.style.width = `${progress * 100}%`;
+            }
+        }
+    });
+}
+
+let selectedGods = [];
+
+function selectCharacter(god) {
+    if (selectedGods.length >= 2) {
+        alert("Both players have already selected their gods!");
+        return;
+    }
+    
+    if (selectedGods.includes(god)) {
+        alert("This god has already been selected!");
+        return;
+    }
+    
+    selectedGods.push(god);
+    
+    // Update the button to show it's selected
+    const buttons = document.querySelectorAll('.character-button');
+    buttons.forEach(button => {
+        if (button.textContent.includes(god)) {
+            button.style.backgroundColor = '#666';
+            button.disabled = true;
+        }
+    });
+    
+    // Update the player turn text
+    const turnText = document.querySelector('#character-select p');
+    if (selectedGods.length === 1) {
+        turnText.textContent = "Player 2's Turn";
+    }
+    
+    // If both players have selected, start the game
+    if (selectedGods.length === 2) {
+        turnText.textContent = "Starting Game...";
+        setTimeout(() => {
+            document.getElementById('character-select').classList.add('hidden');
+            startGame(selectedGods);
+        }, 1000);
+    }
+}
+
+function startGame(selectedGods) {
+    // Initialize game with selected gods
+    const config = {
+        type: Phaser.AUTO,
+        width: GAME_WIDTH,
+        height: GAME_HEIGHT,
+        scene: {
+            create: create,
+            update: update
+        },
+        physics: {
+            default: 'arcade',
+            arcade: {
+                gravity: { y: 0 },
+                debug: false
+            }
+        }
+    };
+    
+    const game = new Phaser.Game(config);
+    
+    // Store selected gods for use in create function
+    game.selectedGods = selectedGods;
+}
+
+function create() {
+    // Initialize game objects and setup scene
     this.players = [];
     this.enemies = [];
-    let nonHadesIndex = 0;
-    for (let i = 0; i < GODS.length; i++) {
-      let godName = GODS[i].name;
-      let spawnX, spawnY;
-      if (godName === "Hades") {
-        let angle = Phaser.Math.FloatBetween(0, 2*Math.PI);
-        let r = Phaser.Math.FloatBetween(0, 75);
-        spawnX = ARENA_CENTER.x + r * Math.cos(angle);
-        spawnY = ARENA_CENTER.y + r * Math.sin(angle);
-      } else {
-        let zone = this.pieZones.find(z => z.god === godName);
-        if (zone) {
-          let angle = Phaser.Math.FloatBetween(zone.startAngle, zone.endAngle);
-          let r = Phaser.Math.FloatBetween(0, zone.radius * 0.8);
-          spawnX = zone.centerX + r * Math.cos(angle);
-          spawnY = zone.centerY + r * Math.sin(angle);
-        } else {
-          spawnX = Phaser.Math.Between(50, GAME_WIDTH - 50);
-          spawnY = Phaser.Math.Between(50, GAME_HEIGHT - 50);
+    this.projectiles = [];
+    this.whirlpools = [];
+    
+    // Create the arena
+    const graphics = this.add.graphics();
+    graphics.lineStyle(4, 0xffffff);
+    graphics.strokeCircle(ARENA_CENTER.x, ARENA_CENTER.y, ARENA_RADIUS);
+    
+    // Setup players with selected gods
+    const game = this.game;
+    const selectedGods = game.selectedGods;
+    
+    // Player 1 starting position (left side)
+    this.players.push(new Player(this, {
+        x: ARENA_CENTER.x - 200,
+        y: ARENA_CENTER.y,
+        god: selectedGods[0],
+        playerIndex: 0,
+        controls: {
+            up: 'W',
+            down: 'S',
+            left: 'A',
+            right: 'D',
+            primary: 'SPACE',
+            special: 'E',
+            ranged: 'R',
+            dash: 'SHIFT'
         }
-      }
-      if (i < 4) {
-        let shapeSides = (godName === "Hades") ? 0 : (3 + nonHadesIndex++);
-        let player = new Player(this, spawnX, spawnY, i, shapeSides);
-        player.god = godName;
-        if (godName === "Hades") {
-          player.sprite.setTexture("circle_hades");
-        } else {
-          player.sprite.setTexture("poly_" + shapeSides);
+    }));
+    
+    // Player 2 starting position (right side)
+    this.players.push(new Player(this, {
+        x: ARENA_CENTER.x + 200,
+        y: ARENA_CENTER.y,
+        god: selectedGods[1],
+        playerIndex: 1,
+        controls: {
+            up: 'I',
+            down: 'K',
+            left: 'J',
+            right: 'L',
+            primary: 'F',
+            special: 'G',
+            ranged: 'H',
+            dash: 'CONTROL'
         }
-        player.homeZone = (godName === "Hades") ? this.hadesCircle : this.pieZones.find(z => z.god === godName);
-        let cfg = GOD_CONFIG[godName];
-        player.maxHealth = cfg.health;
-        player.health = cfg.health;
-        player.damage = cfg.damage;
-        player.maxShield = cfg.shield;
-        player.shield = cfg.shield;
-        player.maxBullets = cfg.bullets;
-        player.currentBullets = cfg.bullets;
-        this.players.push(player);
-      } else {
-        let shapeSides = (godName === "Hades") ? 0 : (3 + nonHadesIndex++);
-        let enemy = new Enemy(this, spawnX, spawnY, i, shapeSides);
-        enemy.god = godName;
-        if (godName === "Hades") {
-          enemy.sprite.setTexture("circle_hades");
-        } else {
-          enemy.sprite.setTexture("poly_" + shapeSides);
-        }
-        enemy.homeZone = this.pieZones.find(z => z.god === godName);
-        let cfg = GOD_CONFIG[godName];
-        enemy.maxHealth = cfg.health;
-        enemy.health = cfg.health;
-        enemy.damage = cfg.damage;
-        enemy.maxShield = cfg.shield;
-        enemy.shield = cfg.shield;
-        enemy.maxBullets = cfg.bullets;
-        enemy.currentBullets = cfg.bullets;
-        this.enemies.push(enemy);
-      }
+    }));
+    
+    // Create 10 NPCs with random gods
+    const availableGods = GODS.filter(god => !selectedGods.includes(god.name));
+    for (let i = 0; i < 10; i++) {
+        const angle = (Math.PI * 2 * i) / 10;
+        const radius = ARENA_RADIUS * 0.7;
+        const x = ARENA_CENTER.x + Math.cos(angle) * radius;
+        const y = ARENA_CENTER.y + Math.sin(angle) * radius;
+        
+        const randomGod = availableGods[Math.floor(Math.random() * availableGods.length)];
+        this.enemies.push(new Enemy(this, {
+            x: x,
+            y: y,
+            god: randomGod.name
+        }));
     }
     
-    // Spawn power-ups INSIDE the arena.
+    // Initialize input handling
+    this.cursors = this.input.keyboard.createCursorKeys();
+    
+    // Properly bind handleKeyDown to the scene context
+    this.handleKeyDown = handleKeyDown.bind(this);
+    this.input.keyboard.on('keydown', this.handleKeyDown);
+    
+    // Start combat handler
     this.time.addEvent({
-      delay: 15000,
-      callback: () => {
-        let angle = Phaser.Math.FloatBetween(0, 2*Math.PI);
-        let r = Math.sqrt(Math.random()) * ARENA_RADIUS;
-        let puX = ARENA_CENTER.x + r * Math.cos(angle);
-        let puY = ARENA_CENTER.y + r * Math.sin(angle);
-        // Alternate power-up types.
-        let type = (Math.random() < 0.5) ? "shield" : "extraSpeed";
-        let powerUp = new PowerUp(this, puX, puY, type);
-        this.powerUps.push(powerUp);
-      },
-      loop: true
+        delay: 100,
+        callback: handleCombat,
+        callbackScope: this,
+        loop: true
     });
+}
+
+function update() {
+    // Update all game objects
+    this.players.forEach(player => player.update());
+    this.enemies.forEach(enemy => enemy.update());
+    this.projectiles.forEach(projectile => projectile.update());
+    this.whirlpools.forEach(whirlpool => whirlpool.update());
     
-    // Add help icon.
-    this.helpIcon = this.add.text(GAME_WIDTH - 30, 10, "?", { fontSize: '24px', fill: '#fff' });
-    this.helpIcon.setInteractive();
-    this.helpIcon.on('pointerdown', () => {
-      if (this.scene.isActive('HelpScene')) {
-        this.scene.stop('HelpScene');
-      } else {
-        this.scene.launch('HelpScene', { previousScene: 'MainScene' });
-      }
-    });
-    this.input.keyboard.on('keydown', (event) => {
-      if (event.key === '?') {
-        if (this.scene.isActive('HelpScene')) {
-          this.scene.stop('HelpScene');
-        } else {
-          this.scene.launch('HelpScene', { previousScene: 'MainScene' });
-        }
-      }
-    });
+    // Check for collisions
+    this.physics.world.collide(this.players, this.enemies);
+    this.physics.world.collide(this.projectiles, this.enemies);
+    this.physics.world.collide(this.projectiles, this.players);
     
-    // Gamepad assignment.
-    if (this.input.gamepad.total > 0) {
-      this.input.gamepad.gamepads.forEach((pad, idx) => {
-        if (this.players[idx] && !this.players[idx].gamepad) {
-          this.players[idx].gamepad = pad;
-        }
-      });
-    }
-    this.input.gamepad.on('connected', (pad) => {
-      this.players.forEach((player, idx) => {
-        if (!player.gamepad && this.input.gamepad.gamepads[idx]) {
-          player.gamepad = this.input.gamepad.gamepads[idx];
-        }
-      });
+    // Update UI
+    updateHUD(this);
+}
+
+function handleKeyDown(event) {
+    this.players.forEach(player => {
+        player.handleInput(event);
     });
-    
-    // Create a minimap camera in the upper-left corner.
-    this.minimap = this.cameras.add(10, 10, 200, 150).setZoom(200/GAME_WIDTH).setBackgroundColor(0x111111);
-  }
-  
-  spawnMeleeAttack(x, y, attackType, shooter) {
-    let offset = 0, width = 0, height = 0, damageMultiplier = 1;
-    if (attackType === "regular") {
-      offset = 20; width = 30; height = 20; damageMultiplier = 1;
-    } else if (attackType === "spin") {
-      offset = 0; width = 50; height = 50; damageMultiplier = 0.7;
-    }
-    let attackX = x, attackY = y;
-    if (offset > 0) {
-      attackX = x + shooter.lastFacing.x * offset;
-      attackY = y + shooter.lastFacing.y * offset;
-    }
-    let rotation = (attackType === "spin") ? 0 : Math.atan2(shooter.lastFacing.y, shooter.lastFacing.x);
-    this.spawnMeleeAttackHitbox(attackX, attackY, width, height, rotation, shooter.damage * damageMultiplier, shooter);
-  }
-  
-  spawnMeleeAttackHitbox(x, y, width, height, rotation, damage, shooter) {
-    let melee = new MeleeAttack(this, x, y, width, height, rotation, damage, shooter);
-    this.meleeAttacks.push(melee);
-  }
-  
-  spawnProjectileAttack(x, y, shooter, dirX, dirY) {
-    let speed = 500;
-    let mag = Math.sqrt(dirX*dirX + dirY*dirY);
-    if (mag === 0) { dirX = shooter.lastFacing.x; dirY = shooter.lastFacing.y; }
-    else { dirX /= mag; dirY /= mag; }
-    let velX = dirX * speed, velY = dirY * speed;
-    let damage = shooter.damage * 1.2;
-    let projectile = new ProjectileAttack(this, x, y, "projectile", velX, velY, damage, shooter);
-    this.projectiles.push(projectile);
-  }
-  
-  updateProjectileAttacks(delta) {
-    for (let i = this.projectiles.length - 1; i >= 0; i--) {
-      let proj = this.projectiles[i];
-      if (!proj.update(delta)) {
-        this.projectiles.splice(i, 1);
-      } else {
-        let allTargets = this.players.concat(this.enemies);
-        for (let target of allTargets) {
-          if (target !== proj.owner &&
-              Phaser.Geom.Intersects.RectangleToRectangle(proj.getBounds(), target.sprite.getBounds())) {
-            let dmg = proj.damage;
-            if (target.shield > 0) {
-              let remainder = dmg - target.shield;
-              target.shield = Math.max(0, target.shield - dmg);
-              if (remainder > 0) {
-                target.health = Math.max(0, target.health - remainder);
-              }
-            } else {
-              target.health = Math.max(0, target.health - dmg);
+}
+
+function updateHUD(scene) {
+    scene.players.forEach(player => {
+        // Update health and shield displays
+        const healthPercent = player.health / player.maxHealth;
+        const shieldPercent = player.shield / player.maxShield;
+        
+        // Update cooldown indicators
+        const currentTime = Date.now();
+        ['primary', 'special', 'ranged', 'dash'].forEach(ability => {
+            const cooldownElement = document.getElementById(`${ability}-cooldown-p${player.playerIndex}`);
+            if (cooldownElement) {
+                const progressBar = cooldownElement.querySelector('.cooldown-progress');
+                const lastUseTime = player[`last${ability.charAt(0).toUpperCase() + ability.slice(1)}Time`];
+                const cooldownTime = GOD_CONFIG[player.god].cooldowns[ability];
+                
+                if (lastUseTime && cooldownTime) {
+                    const elapsed = currentTime - lastUseTime;
+                    const progress = Math.min(elapsed / cooldownTime, 1);
+                    progressBar.style.width = `${progress * 100}%`;
+                }
             }
-            proj.destroy();
-            this.projectiles.splice(i, 1);
-            break;
-          }
-        }
-      }
-    }
-  }
-  
-  updatePowerUps(delta) {
-    for (let i = this.powerUps.length - 1; i >= 0; i--) {
-      let pu = this.powerUps[i];
-      if (!pu.update(delta)) {
-        this.powerUps.splice(i, 1);
-      } else {
-        this.players.forEach(player => {
-          if (Phaser.Geom.Intersects.RectangleToRectangle(pu.getBounds(), player.sprite.getBounds())) {
-            // Apply power-up effect based on type.
-            if (pu.type === "shield") {
-              player.shield += 20;
-            } else if (pu.type === "extraSpeed") {
-              // Temporarily boost speed.
-              player.speed = PLAYER_SPEED * 1.5;
-              this.time.delayedCall(5000, () => { player.speed = PLAYER_SPEED; });
-            }
-            pu.destroy();
-            this.powerUps.splice(i, 1);
-          }
         });
-      }
-    }
-  }
-  
-  update(time, delta) {
-    this.pieZones.forEach(zone => zone.updateDisplay(this.players));
-    this.hadesCircle.setPosition(ARENA_CENTER.x, ARENA_CENTER.y);
-    
-    for (let i = this.meleeAttacks.length - 1; i >= 0; i--) {
-      let attack = this.meleeAttacks[i];
-      if (!attack.update(delta)) {
-        this.meleeAttacks.splice(i, 1);
-      } else {
-        let allTargets = this.players.concat(this.enemies);
-        let hitSomething = false;
-        allTargets.forEach(target => {
-          if (target !== attack.owner &&
-              Phaser.Geom.Intersects.RectangleToRectangle(attack.getBounds(), target.sprite.getBounds())) {
-            let dmg = attack.damage;
-            if (target.shield > 0) {
-              let remainder = dmg - target.shield;
-              target.shield = Math.max(0, target.shield - dmg);
-              if (remainder > 0) { target.health = Math.max(0, target.health - remainder); }
-            } else {
-              target.health = Math.max(0, target.health - dmg);
-            }
-            hitSomething = true;
-          }
-        });
-        if (hitSomething) {
-          attack.destroy();
-          this.meleeAttacks.splice(i, 1);
-        }
-      }
-    }
-    
-    this.updateProjectileAttacks(delta);
-    this.updatePowerUps(delta);
-    
-    for (let i = this.players.length - 1; i >= 0; i--) {
-      let player = this.players[i];
-      player.update();
-      if (player.health <= 0) {
-        player.destroy();
-        this.players.splice(i, 1);
-      }
-    }
-    for (let i = this.enemies.length - 1; i >= 0; i--) {
-      let enemy = this.enemies[i];
-      enemy.update(time, delta);
-      if (enemy.health <= 0) {
-        enemy.sprite.destroy();
-        enemy.nameText.destroy();
-        enemy.healthBar.destroy();
-        this.enemies.splice(i, 1);
-      }
-    }
-    
-    let allChars = this.players.concat(this.enemies);
-    let hudInfo = "Combatants Left:\n";
-    allChars.forEach((char, idx) => {
-      let label = (char.playerIndex !== undefined) ? ("P" + char.playerIndex + ": " + char.god)
-                                                   : ("E" + idx + ": " + char.god);
-      hudInfo += label + " - HP: " + char.health + " | Shield: " + char.shield + " | Ammo: " + char.currentBullets + "\n";
     });
-    this.hudText.setText(hudInfo);
-    
-    if (allChars.length > 0) {
-      let uniqueGods = new Set(allChars.map(ch => ch.god));
-      if (uniqueGods.size === 1) {
-        this.scene.start('WinScene', { god: Array.from(uniqueGods)[0] });
-      }
-    }
-  }
 }
-
-/* --- Win Scene --- */
-class WinScene extends Phaser.Scene {
-  constructor() {
-    super('WinScene');
-  }
-  init(data) { this.winningGod = data.god; }
-  create() {
-    this.cameras.main.setBackgroundColor(0x111111);
-    this.add.text(GAME_WIDTH/2 - 200, GAME_HEIGHT/2 - 100, "The " + this.winningGod + " has won!", { fontSize: '48px', fill: '#fff' });
-    let btn = document.createElement("button");
-    btn.id = "restartBtn";
-    btn.textContent = "Restart Game";
-    btn.onclick = () => { btn.remove(); this.scene.start('MainScene'); };
-    document.body.appendChild(btn);
-  }
-}
-
-/* --- Help Scene --- */
-class HelpScene extends Phaser.Scene {
-  constructor() { super('HelpScene'); }
-  init(data) { this.previousScene = data.previousScene || 'MainScene'; }
-  create() {
-    this.add.rectangle(GAME_WIDTH/2, GAME_HEIGHT/2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7);
-    let helpText =
-`Keyboard Controls:
-
-Player 0:
-  Move: Arrow Keys
-  Sprint: SHIFT
-  Regular Melee: SPACE
-  Spin Melee: Q
-  Projectile Attack: E
-
-Player 1:
-  Move: W A S D
-  Sprint: CONTROL
-  Regular Melee: F
-  Spin Melee: G
-  Projectile Attack: H
-
-Player 2:
-  Move: I J K L
-  Sprint: U
-  Regular Melee: O
-  Spin Melee: P
-  Projectile Attack: [
-
-Player 3:
-  Move: Numpad 8/4/6/2
-  Sprint: Numpad 0
-  Regular Melee: Numpad 1
-  Spin Melee: Numpad 3
-  Projectile Attack: Numpad 5
-
-Additional:
-  Press "?" to toggle this help screen.`;
-    this.add.text(50, 50, helpText, { fontSize: '20px', fill: '#fff', wordWrap: { width: GAME_WIDTH - 100 } });
-    this.input.keyboard.once('keydown-?', () => { this.scene.stop('HelpScene'); });
-    let closeBtn = document.createElement("button");
-    closeBtn.id = "closeHelpBtn";
-    closeBtn.textContent = "Close Help";
-    closeBtn.onclick = () => { closeBtn.remove(); this.scene.stop('HelpScene'); };
-    document.body.appendChild(closeBtn);
-  }
-}
-
-/* --- Game Configuration --- */
-const config = {
-  type: Phaser.AUTO,
-  width: GAME_WIDTH,
-  height: GAME_HEIGHT,
-  scene: [MainScene, WinScene, HelpScene],
-  parent: 'phaser-example',
-  input: { gamepad: true }
-};
-
-const game = new Phaser.Game(config);
-
-/*
-  Additional Suggestions for More Dynamic Play:
-
-  Enhanced AI:
-    - Fully integrate EasyStar.js with a detailed grid of obstacles and call easyStar.findPath() for enemy navigation.
-    - Expand enemy state machines to robustly handle patrol, chase, retreat, and dodge behaviors.
-
-  Visual & Audio:
-    - Replace placeholder textures with polished assets from OpenGameArt.org or Itch.io, including smooth animations.
-    - Use Phaser’s particle emitters to add effects for melee impacts, explosions, and power-up pickups.
-    - Incorporate an adaptive soundtrack and context-sensitive sound effects.
-
-  Power-Ups & Special Moves:
-    - Enhance the PowerUp class to support multiple boost types (extra speed, damage, etc.) and create unique special moves for each god.
-
-  UI/HUD Enhancements:
-    - Build a comprehensive HUD displaying detailed stats (name, HP, shield, ammo) with clear tooltips (using the hudTooltip div) and in-game tutorials.
-
-  Code Organization & Performance:
-    - Refactor code into separate modules (Player, Enemy, AI, UI, etc.) for better maintainability.
-    - Implement robust object pooling for transient objects (melee hitboxes, projectiles, enemies) to improve performance and reduce garbage collection.
-
-  Further playtesting and balancing will be essential.
-*/
 </script>
 </body>
 </html>

@@ -34,6 +34,12 @@
         #special-cooldown {
             right: 170px;
         }
+        #ranged-cooldown {
+            right: 330px;
+        }
+        #dash-cooldown {
+            right: 490px;
+        }
         #info {
             position: absolute;
             top: 10px;
@@ -54,15 +60,17 @@
             padding: 20px;
             border-radius: 10px;
             text-align: center;
+            z-index: 1000;
         }
         .character-button {
             margin: 5px;
-            padding: 10px;
+            padding: 10px 20px;
             background: #333;
             border: none;
             color: white;
             cursor: pointer;
             border-radius: 5px;
+            font-size: 16px;
         }
         .character-button:hover {
             background: #444;
@@ -83,7 +91,7 @@
     </style>
 </head>
 <body>
-    <div id="info">WASD: Move<br>Space: Attack<br>E: Special Ability<br>Shift: Dash</div>
+    <div id="info">WASD: Move<br>Space: Attack<br>E: Special Ability<br>Shift: Dash<br>R: Ranged Attack</div>
     <div id="player-stats">Health: 100<br>Shield: 100</div>
     <div id="primary-cooldown" class="cooldown-indicator">
         Primary Attack (Space)
@@ -97,25 +105,70 @@
             <div class="cooldown-progress" style="width: 100%"></div>
         </div>
     </div>
+    <div id="ranged-cooldown" class="cooldown-indicator">
+        Ranged Attack (R)
+        <div class="cooldown-bar">
+            <div class="cooldown-progress" style="width: 100%"></div>
+        </div>
+    </div>
+    <div id="dash-cooldown" class="cooldown-indicator">
+        Dash (Shift)
+        <div class="cooldown-bar">
+            <div class="cooldown-progress" style="width: 100%"></div>
+        </div>
+    </div>
     <div id="character-select">
         <h2>Select Your God</h2>
-        <div id="character-buttons"></div>
+        <div id="character-buttons">
+            <button class="character-button" onclick="selectCharacter('Zeus')">Zeus</button>
+            <button class="character-button" onclick="selectCharacter('Poseidon')">Poseidon</button>
+        </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
     <script>
-        // Game state
-        let gameState = 'character-select'; // character-select, playing
+        // Initialize Three.js scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x111111);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 20, 10);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 500;
+        scene.add(directionalLight);
+
+        // Game state and player
+        let gameState = 'character-select';
         let selectedGod = null;
+        let keys = {};
+        let player = null;
+        let lastDashTime = 0;
+        let lastRangedTime = 0;
+        const DASH_COOLDOWN = 3000; // 3 seconds
+        const RANGED_COOLDOWN = 500; // 0.5 seconds
+        const DASH_SPEED = 2.0; // Multiplier for dash speed
+        const DASH_DURATION = 200; // Duration of dash in milliseconds
+        let isDashing = false;
+        let dashStartTime = 0;
+        let dashDirection = new THREE.Vector3();
 
         // Character definitions
         const gods = {
             Zeus: {
                 color: 0xFFD700,
                 primaryAttack: (scene, position, direction) => {
-                    // Calculate position 10 units ahead of player in movement direction
-                    const forward = direction.clone().normalize();
-                    const strikePos = position.clone().add(forward.multiplyScalar(10));
-                    createLightningStrike(scene, strikePos, forward);
+                    // Create lightning strike from player position in movement direction
+                    createLightningStrike(scene, position, direction);
                 },
                 specialAbility: (scene, position) => {
                     // Create lightning strikes in a circle
@@ -147,70 +200,42 @@
             // Add other gods here...
         };
 
-        // Initialize character selection
-        const charButtons = document.getElementById('character-buttons');
-        Object.keys(gods).forEach(god => {
-            const button = document.createElement('button');
-            button.className = 'character-button';
-            button.textContent = god;
-            button.onclick = () => selectCharacter(god);
-            charButtons.appendChild(button);
-        });
-
         function selectCharacter(god) {
             selectedGod = god;
             document.getElementById('character-select').classList.add('hidden');
             gameState = 'playing';
-            initGame();
-        }
-
-        // Scene setup
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000033);
-
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-        scene.add(ambientLight);
-
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(10, 20, 10);
-        scene.add(directionalLight);
-
-        // Arena setup
-        const ARENA_SIZE = 100;
-        const ZONE_COUNT = 13; // One for each god
-        const ZONE_ANGLE = (Math.PI * 2) / ZONE_COUNT;
-
-        function createArena() {
-            const arenaGeometry = new THREE.CircleGeometry(ARENA_SIZE, 64);
-            const arenaMaterial = new THREE.MeshPhongMaterial({ 
-                color: 0x333366,
-                shininess: 10
-            });
-            const arena = new THREE.Mesh(arenaGeometry, arenaMaterial);
-            arena.rotation.x = -Math.PI / 2;
-            scene.add(arena);
-
-            // Create zone indicators
-            for (let i = 0; i < ZONE_COUNT; i++) {
-                const zoneGeometry = new THREE.CircleGeometry(ARENA_SIZE, 32, i * ZONE_ANGLE, ZONE_ANGLE);
-                const zoneMaterial = new THREE.MeshPhongMaterial({
-                    color: 0x666666,
-                    transparent: true,
-                    opacity: 0.3
-                });
-                const zone = new THREE.Mesh(zoneGeometry, zoneMaterial);
-                zone.rotation.x = -Math.PI / 2;
-                scene.add(zone);
+            
+            // Add event listeners for controls
+            window.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
+            window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+            
+            // Initialize game with the selected god
+            player = createPlayer(selectedGod);
+            createArena();
+            
+            // Set up initial camera position
+            camera.position.set(0, 40, 50);
+            camera.lookAt(player.position);
+            
+            // Correct animation loop
+            function animate() {
+                // Only call requestAnimationFrame at the END of the function
+                if (gameState === 'playing' && player) {
+                    handleMovement();
+                    handleCombat();
+                    updateCamera();
+                }
+                
+                renderer.render(scene, camera);
+                
+                // Schedule next frame
+                requestAnimationFrame(animate);
             }
+
+            // Start the animation loop
+            animate();
         }
 
-        // Player setup
         function createPlayer(god) {
             const playerGroup = new THREE.Group();
             
@@ -221,6 +246,8 @@
                 emissiveIntensity: 0.2
             });
             const playerMesh = new THREE.Mesh(playerGeometry, playerMaterial);
+            // Center the mesh's origin at the bottom
+            playerMesh.position.y = 1;
             playerGroup.add(playerMesh);
 
             // Divine aura
@@ -231,152 +258,356 @@
                 opacity: 0.2
             });
             const aura = new THREE.Mesh(auraGeometry, auraMaterial);
+            // Position aura to match new player center
+            aura.position.y = 1;
             playerGroup.add(aura);
 
-            playerGroup.position.y = 1;
             scene.add(playerGroup);
-
             return playerGroup;
         }
 
-        // Game initialization
-        function initGame() {
-            createArena();
-            const player = createPlayer(selectedGod);
-            
-            // Set up initial camera position
-            camera.position.set(0, 40, 50);
-            camera.lookAt(player.position);
+        function handleMovement() {
+            let movementX = 0;
+            let movementZ = 0;
+            if (keys['w']) movementZ -= 1;
+            if (keys['s']) movementZ += 1;
+            if (keys['a']) movementX -= 1;
+            if (keys['d']) movementX += 1;
 
-            // Set up controls
-            const keys = {};
-            window.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
-            window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
-
-            // Player properties
-            player.userData = {
-                moveSpeed: 0.3,
-                health: 100,
-                shield: 100,
-                lastPrimaryAttack: 0,
-                lastSpecialAbility: 0,
-                lastMovementDir: new THREE.Vector3(0, 0, -1)
-            };
-            
-            // Initialize game loop
-            function animate() {
-                requestAnimationFrame(animate);
+            // Handle dash
+            const currentTime = Date.now();
+            if (keys['shift'] && currentTime - lastDashTime > DASH_COOLDOWN && (movementX !== 0 || movementZ !== 0)) {
+                isDashing = true;
+                dashStartTime = currentTime;
+                lastDashTime = currentTime;
+                dashDirection.set(movementX, 0, movementZ).normalize();
                 
-                if (gameState === 'playing') {
-                    // Handle movement
-                    let movementX = 0;
-                    let movementZ = 0;
-                    if (keys['w']) movementZ -= 1;
-                    if (keys['s']) movementZ += 1;
-                    if (keys['a']) movementX -= 1;
-                    if (keys['d']) movementX += 1;
-
-                    // Update position if moving
-                    if (movementX !== 0 || movementZ !== 0) {
-                        const normalizedMovement = new THREE.Vector3(movementX, 0, movementZ).normalize();
-                        player.position.x += normalizedMovement.x * player.userData.moveSpeed;
-                        player.position.z += normalizedMovement.z * player.userData.moveSpeed;
-                        player.userData.lastMovementDir = normalizedMovement;
-
-                        // Keep player in bounds
-                        const distanceFromCenter = Math.sqrt(
-                            player.position.x * player.position.x + 
-                            player.position.z * player.position.z
-                        );
-                        
-                        if (distanceFromCenter > ARENA_SIZE) {
-                            const angle = Math.atan2(player.position.z, player.position.x);
-                            player.position.x = Math.cos(angle) * ARENA_SIZE;
-                            player.position.z = Math.sin(angle) * ARENA_SIZE;
-                        }
-
-                        // Update player rotation to face movement direction
-                        player.rotation.y = Math.atan2(movementX, -movementZ);
-                    }
-
-                    // Update camera to follow player
-                    const targetCameraX = player.position.x;
-                    const targetCameraZ = player.position.z + 50;
-                    camera.position.x += (targetCameraX - camera.position.x) * 0.1;
-                    camera.position.z += (targetCameraZ - camera.position.z) * 0.1;
-                    camera.lookAt(player.position);
-
-                    // Handle combat abilities
-                    const currentTime = Date.now();
-                    const godAbilities = gods[selectedGod];
-
-                    // Update cooldown indicators
-                    const primaryProgress = Math.min(100, 
-                        ((currentTime - player.userData.lastPrimaryAttack) / godAbilities.cooldowns.primaryAttack) * 100);
-                    const specialProgress = Math.min(100,
-                        ((currentTime - player.userData.lastSpecialAbility) / godAbilities.cooldowns.specialAbility) * 100);
-                    
-                    document.querySelector('#primary-cooldown .cooldown-progress').style.width = `${primaryProgress}%`;
-                    document.querySelector('#special-cooldown .cooldown-progress').style.width = `${specialProgress}%`;
-
-                    // Primary attack (Space)
-                    if (keys[' '] && 
-                        currentTime - player.userData.lastPrimaryAttack > godAbilities.cooldowns.primaryAttack) {
-                        godAbilities.primaryAttack(scene, player.position, player.userData.lastMovementDir.clone());
-                        player.userData.lastPrimaryAttack = currentTime;
-                    }
-
-                    // Special ability (E)
-                    if (keys['e'] && 
-                        currentTime - player.userData.lastSpecialAbility > godAbilities.cooldowns.specialAbility) {
-                        godAbilities.specialAbility(scene, player.position);
-                        player.userData.lastSpecialAbility = currentTime;
-                    }
-
-                    // Check for damage from abilities
-                    scene.children.forEach(object => {
-                        if (object.userData && object.userData.damage) {
-                            // Only check recent attacks
-                            if (currentTime - object.userData.createdTime < 100) {
-                                const distance = object.position.distanceTo(player.position);
-                                if (distance < 2) { // Damage radius
-                                    player.userData.health -= object.userData.damage;
-                                    // Update stats display
-                                    document.getElementById('player-stats').innerHTML = 
-                                        `Health: ${player.userData.health}<br>Shield: ${player.userData.shield}`;
-                                }
-                            }
-                        }
-                    });
-
-                    // Update divine aura
-                    const time = Date.now() * 0.001;
-                    player.children[1].scale.setScalar(1 + Math.sin(time * 2) * 0.1);
-                    player.children[1].material.opacity = 0.2 + Math.sin(time * 2) * 0.1;
-                    
-                    // Update player stats display
-                    document.getElementById('player-stats').innerHTML = 
-                        `Health: ${player.userData.health}<br>Shield: ${player.userData.shield}`;
-                }
-
-                renderer.render(scene, camera);
+                // Update dash cooldown UI
+                const dashCooldown = document.getElementById('dash-cooldown');
+                const dashProgress = dashCooldown.querySelector('.cooldown-progress');
+                dashProgress.style.width = '0%';
+                dashProgress.style.transition = 'none';
+                setTimeout(() => {
+                    dashProgress.style.transition = `width ${DASH_COOLDOWN}ms linear`;
+                    dashProgress.style.width = '100%';
+                }, 10);
             }
 
-            animate();
+            if (movementX !== 0 || movementZ !== 0 || isDashing) {
+                const normalizedMovement = new THREE.Vector3(movementX, 0, movementZ).normalize();
+                let moveSpeed = 0.5;
+                
+                // Apply dash if active
+                if (isDashing) {
+                    if (currentTime - dashStartTime > DASH_DURATION) {
+                        isDashing = false;
+                    } else {
+                        moveSpeed *= DASH_SPEED;
+                        normalizedMovement.copy(dashDirection);
+                    }
+                }
+
+                // Calculate new position
+                const newX = player.position.x + normalizedMovement.x * moveSpeed;
+                const newZ = player.position.z + normalizedMovement.z * moveSpeed;
+                
+                // Calculate distance from center
+                const distanceFromCenter = Math.sqrt(newX * newX + newZ * newZ);
+                
+                let finalX = newX;
+                let finalZ = newZ;
+                
+                // If we're beyond the arena edge, slide along the edge
+                if (distanceFromCenter > ARENA_SIZE - 1) {
+                    // Calculate angle to center
+                    const angleToCenter = Math.atan2(newZ, newX);
+                    
+                    // Project movement vector onto edge tangent
+                    const edgeNormal = new THREE.Vector3(Math.cos(angleToCenter), 0, Math.sin(angleToCenter));
+                    const movementVector = new THREE.Vector3(normalizedMovement.x, 0, normalizedMovement.z);
+                    const dot = movementVector.dot(edgeNormal);
+                    const projection = movementVector.sub(edgeNormal.multiplyScalar(dot));
+                    
+                    // Apply edge movement
+                    const edgeRadius = ARENA_SIZE - 1;
+                    const currentAngle = Math.atan2(player.position.z, player.position.x);
+                    const newAngle = currentAngle + projection.length() * moveSpeed * 0.5;
+                    
+                    finalX = edgeRadius * Math.cos(newAngle);
+                    finalZ = edgeRadius * Math.sin(newAngle);
+                }
+                
+                // Calculate height based on distance from center using cone equation
+                const distanceRatio = Math.sqrt(finalX * finalX + finalZ * finalZ) / ARENA_SIZE;
+                const newY = MOUNTAIN_HEIGHT * (1 - distanceRatio);
+                
+                // Update player position - player is now directly on surface
+                player.position.set(finalX, newY, finalZ);
+                
+                // Only rotate the player around Y axis to face movement direction
+                player.rotation.y = Math.atan2(movementX, -movementZ);
+            }
+        }
+
+        function updateCamera() {
+            // Calculate target position with fixed offset from player
+            const cameraOffset = new THREE.Vector3(0, 30, 40);
+            const targetPosition = player.position.clone().add(cameraOffset);
+            
+            // Smooth camera movement with slower lerp
+            camera.position.lerp(targetPosition, 0.05);
+            camera.lookAt(player.position);
+        }
+
+        // Arena setup
+        const ARENA_SIZE = 100;
+        const ZONE_COUNT = 12; // Changed to 12 gods
+        const ZONE_ANGLE = (Math.PI * 2) / ZONE_COUNT;
+        const MOUNTAIN_HEIGHT = 20;
+
+        function createArena() {
+            // Create mountain geometry with more segments for smoother surface
+            const mountainGeometry = new THREE.ConeGeometry(ARENA_SIZE, MOUNTAIN_HEIGHT, ZONE_COUNT * 4, 16);
+            
+            // Create texture loader
+            const textureLoader = new THREE.TextureLoader();
+            
+            // Load textures
+            const iceTexture = textureLoader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
+            const snowTexture = textureLoader.load('https://threejs.org/examples/textures/water.jpg');
+            const rockTexture = textureLoader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
+            const lavaTexture = textureLoader.load('https://threejs.org/examples/textures/lava/lavatile.jpg');
+            
+            // Configure textures
+            [iceTexture, snowTexture, rockTexture, lavaTexture].forEach(texture => {
+                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+            });
+            
+            iceTexture.repeat.set(2, 2);
+            snowTexture.repeat.set(4, 4);
+            rockTexture.repeat.set(8, 4);
+            lavaTexture.repeat.set(4, 2);
+            
+            // Create custom vertex shader for complex texture blending
+            const vertexShader = `
+                varying vec2 vUv;
+                varying float vHeight;
+                varying vec3 vNormal;
+                void main() {
+                    vUv = uv;
+                    vHeight = position.y;
+                    vNormal = normal;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `;
+            
+            // Create custom fragment shader for multi-texture blending
+            const fragmentShader = `
+                uniform sampler2D iceTexture;
+                uniform sampler2D snowTexture;
+                uniform sampler2D rockTexture;
+                uniform sampler2D lavaTexture;
+                uniform float time;
+                varying vec2 vUv;
+                varying float vHeight;
+                varying vec3 vNormal;
+
+                // Noise functions for ice crystallization effect
+                float random(vec2 st) {
+                    return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+                }
+
+                float noise(vec2 st) {
+                    vec2 i = floor(st);
+                    vec2 f = fract(st);
+                    float a = random(i);
+                    float b = random(i + vec2(1.0, 0.0));
+                    float c = random(i + vec2(0.0, 1.0));
+                    float d = random(i + vec2(1.0, 1.0));
+                    vec2 u = f * f * (3.0 - 2.0 * f);
+                    return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+                }
+
+                void main() {
+                    // Animated UV coordinates for lava and ice
+                    vec2 lavaUV = vUv + vec2(time * 0.05, time * 0.03);
+                    vec2 iceUV = vUv * 3.0 + vec2(sin(time * 0.1) * 0.1);
+                    
+                    // Ice crystal pattern
+                    float icePattern = noise(iceUV * 10.0 + time * 0.1);
+                    float crystalPattern = pow(icePattern, 3.0) * 0.5;
+                    
+                    // Get texture colors with enhanced ice
+                    vec4 iceColor = texture2D(iceTexture, vUv * 2.0);
+                    vec4 snowColor = texture2D(snowTexture, iceUV);
+                    vec4 rockColor = texture2D(rockTexture, vUv);
+                    vec4 lavaColor = texture2D(lavaTexture, lavaUV);
+                    
+                    // Enhanced ice color with crystal patterns
+                    vec4 enhancedIceColor = mix(
+                        iceColor,
+                        vec4(0.8, 0.9, 1.0, 1.0),
+                        crystalPattern
+                    );
+                    
+                    // Height-based blending with adjusted transitions
+                    float snowBlend = smoothstep(14.0, 20.0, vHeight);
+                    float iceBlend = smoothstep(8.0, 14.0, vHeight) * (1.0 - snowBlend);
+                    
+                    // Calculate distance from center for lava perimeter effect
+                    float distFromCenter = length(vUv - 0.5) * 2.0;
+                    float lavaBlend = smoothstep(0.7, 0.9, distFromCenter) * (1.0 - smoothstep(5.0, 8.0, vHeight));
+                    
+                    // Add noise to transitions
+                    float noise = random(vUv);
+                    snowBlend += (noise - 0.5) * 0.1;
+                    iceBlend += (noise - 0.5) * 0.1;
+                    
+                    // Mix colors based on height and distance
+                    vec4 finalColor = mix(
+                        mix(rockColor, lavaColor, lavaBlend),
+                        mix(enhancedIceColor, snowColor, snowBlend),
+                        smoothstep(6.0, 10.0, vHeight)
+                    );
+                    
+                    // Enhanced ice shimmer effect
+                    float iceShimmer = pow(max(0.0, dot(vNormal, vec3(0.0, 1.0, 0.0))), 8.0) * 
+                                     (snowBlend + iceBlend) * 
+                                     (0.5 + crystalPattern);
+                    finalColor.rgb += vec3(0.6, 0.8, 1.0) * iceShimmer;
+                    
+                    // Add glow to lava areas
+                    float lavaGlow = lavaBlend * 0.6 * (sin(time * 2.0) * 0.2 + 0.8);
+                    finalColor.rgb += vec3(1.0, 0.3, 0.1) * lavaGlow;
+
+                    gl_FragColor = finalColor;
+                }
+            `;
+            
+            // Create custom material with shaders
+            const mountainMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    iceTexture: { value: iceTexture },
+                    snowTexture: { value: snowTexture },
+                    rockTexture: { value: rockTexture },
+                    lavaTexture: { value: lavaTexture },
+                    time: { value: 0.0 }
+                },
+                vertexShader: vertexShader,
+                fragmentShader: fragmentShader,
+                side: THREE.DoubleSide
+            });
+            
+            const mountain = new THREE.Mesh(mountainGeometry, mountainMaterial);
+            scene.add(mountain);
+
+            // Create River Styx
+            const riverGeometry = new THREE.TorusGeometry(ARENA_SIZE - 2, 4, 32, 100);
+            const riverMaterial = new THREE.MeshPhongMaterial({
+                color: 0x000066,
+                transparent: true,
+                opacity: 0.7,
+                emissive: 0x000033,
+                emissiveIntensity: 0.5
+            });
+            const river = new THREE.Mesh(riverGeometry, riverMaterial);
+            river.rotation.x = Math.PI / 2;
+            river.position.y = 0.5;
+            scene.add(river);
+
+            // Add fog particles at the base
+            const particleCount = 1000;
+            const particleGeometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            
+            for(let i = 0; i < particleCount; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = ARENA_SIZE * (0.8 + Math.random() * 0.2);
+                positions[i * 3] = Math.cos(angle) * radius;
+                positions[i * 3 + 1] = Math.random() * 5;
+                positions[i * 3 + 2] = Math.sin(angle) * radius;
+            }
+            
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            
+            const particleMaterial = new THREE.PointsMaterial({
+                color: 0x334455,
+                size: 2,
+                transparent: true,
+                opacity: 0.5,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const particles = new THREE.Points(particleGeometry, particleMaterial);
+            scene.add(particles);
+
+            // Create zone indicators with glowing edges
+            for (let i = 0; i < ZONE_COUNT; i++) {
+                const shape = new THREE.Shape();
+                shape.moveTo(0, 0);
+                shape.lineTo(
+                    ARENA_SIZE * Math.cos(i * ZONE_ANGLE),
+                    ARENA_SIZE * Math.sin(i * ZONE_ANGLE)
+                );
+                shape.lineTo(
+                    ARENA_SIZE * Math.cos((i + 1) * ZONE_ANGLE),
+                    ARENA_SIZE * Math.sin((i + 1) * ZONE_ANGLE)
+                );
+                shape.lineTo(0, 0);
+
+                const geometry = new THREE.ShapeGeometry(shape);
+                const material = new THREE.MeshPhongMaterial({
+                    color: 0x4444ff,
+                    transparent: true,
+                    opacity: 0.2,
+                    side: THREE.DoubleSide,
+                    emissive: 0x2222ff,
+                    emissiveIntensity: 0.5
+                });
+
+                const zone = new THREE.Mesh(geometry, material);
+                zone.rotation.x = -Math.PI / 2;
+                zone.position.y = 0.1;
+                scene.add(zone);
+            }
+
+            // Add invisible collision mesh for accurate surface movement
+            const collisionGeometry = mountainGeometry.clone();
+            const collisionMaterial = new THREE.MeshBasicMaterial({ 
+                visible: false,
+                wireframe: true
+            });
+            const collisionMesh = new THREE.Mesh(collisionGeometry, collisionMaterial);
+            collisionMesh.name = 'collisionMesh';
+            scene.add(collisionMesh);
+
+            // Add animation update to the render loop
+            function updateMountain() {
+                mountainMaterial.uniforms.time.value += 0.016;
+                requestAnimationFrame(updateMountain);
+            }
+            updateMountain();
         }
 
         // Special effects
         function createLightningStrike(scene, position, direction) {
-            // Create zigzag lightning path
+            // Create forward-moving lightning path
             const points = [];
-            const segments = 4;
-            const length = 10;
-            const zigzagWidth = 1;
+            const segments = 6;
+            const length = 5; // Shorter length
+            const zigzagWidth = 0.3; // Smaller zigzag
             
+            // Create points along the forward direction
             for (let i = 0; i <= segments; i++) {
                 const t = i / segments;
-                const x = (i % 2) * zigzagWidth * (i === segments ? 0 : (i % 3 === 0 ? -1 : 1));
-                points.push(new THREE.Vector3(x, 0, t * length));
+                const forward = direction.clone().multiplyScalar(t * length);
+                // Add slight randomness to make it look more electric
+                const randomOffset = new THREE.Vector3(
+                    (Math.random() - 0.5) * zigzagWidth,
+                    0,
+                    (Math.random() - 0.5) * zigzagWidth
+                );
+                points.push(forward.add(randomOffset));
             }
             
             const lightningGeometry = new THREE.BufferGeometry().setFromPoints(points);
@@ -385,46 +616,7 @@
                 linewidth: 3
             });
             const lightning = new THREE.Line(lightningGeometry, lightningMaterial);
-            
-            // Position and rotate
             lightning.position.copy(position);
-            lightning.position.y = 1;
-            
-            if (direction) {
-                const angle = Math.atan2(direction.x, direction.z);
-                lightning.rotation.y = angle;
-            }
-            
-            // Add glow effect
-            const glowMaterial = new THREE.ShaderMaterial({
-                uniforms: {
-                    color: { value: new THREE.Color(0xFFFF00) }
-                },
-                vertexShader: `
-                    varying vec3 vNormal;
-                    void main() {
-                        vNormal = normalize(normalMatrix * normal);
-                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                    }
-                `,
-                fragmentShader: `
-                    uniform vec3 color;
-                    varying vec3 vNormal;
-                    void main() {
-                        float intensity = pow(0.7 - dot(vNormal, vec3(0, 0, 1.0)), 2.0);
-                        gl_FragColor = vec4(color, intensity);
-                    }
-                `,
-                transparent: true,
-                blending: THREE.AdditiveBlending
-            });
-            
-            // Add flash effect
-            const flash = new THREE.PointLight(0xFFFF00, 2, 10);
-            flash.position.copy(position);
-            scene.add(flash);
-            
-            // Add to scene
             scene.add(lightning);
             
             // Add damage properties
@@ -440,53 +632,153 @@
             const animate = () => {
                 if (frame >= maxFrames) {
                     scene.remove(lightning);
-                    scene.remove(flash);
                     return;
                 }
                 
-                // Randomly adjust zigzag points for crackling effect
-                const positions = lightning.geometry.attributes.position.array;
-                for (let i = 3; i < positions.length - 3; i += 3) {
+                // Randomly adjust points for crackling effect
+                const positions = lightningGeometry.attributes.position.array;
+                for (let i = 3; i < positions.length - 3; i += 3) { // Don't modify start and end points
                     positions[i] += (Math.random() - 0.5) * 0.2;
+                    positions[i+1] += (Math.random() - 0.5) * 0.2;
+                    positions[i+2] += (Math.random() - 0.5) * 0.2;
                 }
-                lightning.geometry.attributes.position.needsUpdate = true;
+                lightningGeometry.attributes.position.needsUpdate = true;
                 
                 frame++;
                 requestAnimationFrame(animate);
             };
-            
+
             animate();
-            
-            // Remove after effect
-            setTimeout(() => {
-                scene.remove(lightning);
-                scene.remove(flash);
-            }, 100);
-        }
-            
-            // Add damage collider
-            lightning.userData = {
-                damage: 15,
-                damageType: 'lightning',
-                createdTime: Date.now()
-            };
-            
-            scene.add(lightning);
-
-            // Visual effects
-            const flash = new THREE.PointLight(0xFFFF00, 1, 10);
-            flash.position.copy(position);
-            scene.add(flash);
-
-            // Remove after effect
-            setTimeout(() => {
-                scene.remove(lightning);
-                scene.remove(flash);
-            }, 100);
         }
 
         function createWhirlpool(scene, position) {
             // Whirlpool implementation here
+        }
+
+        function handleCombat() {
+            const currentTime = Date.now();
+            
+            // Calculate recharge bonus
+            const primaryReady = !player.userData.lastPrimaryAttack || 
+                (currentTime - player.userData.lastPrimaryAttack) > gods[selectedGod].cooldowns.primaryAttack;
+            const rangedReady = !lastRangedTime || 
+                (currentTime - lastRangedTime) > RANGED_COOLDOWN;
+            const notMoving = !keys['w'] && !keys['a'] && !keys['s'] && !keys['d'];
+            
+            let rechargeBonus = 1;
+            if (primaryReady) rechargeBonus *= 2;
+            if (primaryReady && notMoving) rechargeBonus *= 2;
+
+            // Primary attack (Space)
+            if (keys[' '] && primaryReady) {
+                const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quaternion);
+                direction.x = -direction.x;
+                gods[selectedGod].primaryAttack(scene, player.position, direction);
+                player.userData.lastPrimaryAttack = currentTime;
+                
+                // Update primary attack cooldown UI
+                const primaryCooldown = document.getElementById('primary-cooldown');
+                const primaryProgress = primaryCooldown.querySelector('.cooldown-progress');
+                primaryProgress.style.width = '0%';
+                primaryProgress.style.transition = 'none';
+                setTimeout(() => {
+                    primaryProgress.style.transition = `width ${gods[selectedGod].cooldowns.primaryAttack}ms linear`;
+                    primaryProgress.style.width = '100%';
+                }, 10);
+            }
+
+            // Ranged attack (R)
+            if (keys['r'] && rangedReady) {
+                const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quaternion);
+                direction.x = -direction.x;
+                createRangedAttack(scene, player.position.clone(), direction);
+                lastRangedTime = currentTime;
+                
+                // Update ranged attack cooldown UI
+                const rangedCooldown = document.getElementById('ranged-cooldown');
+                const rangedProgress = rangedCooldown.querySelector('.cooldown-progress');
+                rangedProgress.style.width = '0%';
+                rangedProgress.style.transition = 'none';
+                setTimeout(() => {
+                    rangedProgress.style.transition = `width ${RANGED_COOLDOWN}ms linear`;
+                    rangedProgress.style.width = '100%';
+                }, 10);
+            }
+
+            // Special ability (E)
+            if (keys['e'] && currentTime - (player.userData.lastSpecialAbility || 0) > (gods[selectedGod].cooldowns.specialAbility / rechargeBonus)) {
+                gods[selectedGod].specialAbility(scene, player.position);
+                player.userData.lastSpecialAbility = currentTime;
+                
+                // Update special ability cooldown UI
+                const specialCooldown = document.getElementById('special-cooldown');
+                const specialProgress = specialCooldown.querySelector('.cooldown-progress');
+                specialProgress.style.width = '0%';
+                specialProgress.style.transition = 'none';
+                
+                setTimeout(() => {
+                    specialProgress.style.transition = `width ${gods[selectedGod].cooldowns.specialAbility / rechargeBonus}ms linear`;
+                    specialProgress.style.width = '100%';
+                }, 10);
+            }
+            
+            // Update cooldown UI continuously
+            updateCooldownUI(currentTime, rechargeBonus);
+        }
+
+        function updateCooldownUI(currentTime, rechargeBonus) {
+            // Primary attack cooldown
+            const primaryCooldown = document.getElementById('primary-cooldown');
+            const primaryProgress = primaryCooldown.querySelector('.cooldown-progress');
+            if (player.userData.lastPrimaryAttack) {
+                const elapsed = currentTime - player.userData.lastPrimaryAttack;
+                const progress = Math.min(elapsed / gods[selectedGod].cooldowns.primaryAttack, 1);
+                primaryProgress.style.width = `${progress * 100}%`;
+            }
+
+            // Special ability cooldown
+            const specialCooldown = document.getElementById('special-cooldown');
+            const specialProgress = specialCooldown.querySelector('.cooldown-progress');
+            if (player.userData.lastSpecialAbility) {
+                const elapsed = currentTime - player.userData.lastSpecialAbility;
+                const progress = Math.min(elapsed / (gods[selectedGod].cooldowns.specialAbility / rechargeBonus), 1);
+                specialProgress.style.width = `${progress * 100}%`;
+            }
+        }
+
+        function createRangedAttack(scene, position, direction) {
+            const projectileGeometry = new THREE.SphereGeometry(0.3);
+            const projectileMaterial = new THREE.MeshPhongMaterial({
+                color: gods[selectedGod].color,
+                emissive: gods[selectedGod].color,
+                emissiveIntensity: 0.5
+            });
+            const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
+            
+            // Raise projectile to match player height
+            position.y += 1;
+            projectile.position.copy(position);
+            
+            // Add velocity and lifetime properties
+            projectile.userData.velocity = direction.multiplyScalar(1.0);
+            projectile.userData.lifetime = 2000; // 2 seconds
+            projectile.userData.created = Date.now();
+            projectile.userData.damage = 10;
+            
+            scene.add(projectile);
+            
+            // Update projectile position in animation loop
+            function updateProjectile() {
+                if (Date.now() - projectile.userData.created > projectile.userData.lifetime) {
+                    scene.remove(projectile);
+                    return;
+                }
+                
+                projectile.position.add(projectile.userData.velocity);
+                requestAnimationFrame(updateProjectile);
+            }
+            
+            updateProjectile();
         }
 
         // Handle window resizing
